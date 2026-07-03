@@ -1,37 +1,23 @@
 (function(){
+  window.SOLUM = window.SOLUM || {};
+  if(SOLUM.registry) return;
 
-const REGISTRY = {};
+  const modulos = {};
 
-window.SolumRegistry = {
-
+  SOLUM.registry = {
     registrar(nome,obj){
-
-        if(REGISTRY[nome]){
-            throw new Error("Módulo já registrado: " + nome);
-        }
-
-        REGISTRY[nome]=obj;
-
-        console.log("📦 Módulo registrado:",nome);
-
+      if(modulos[nome]) throw new Error('Módulo já registrado: ' + nome);
+      modulos[nome] = obj;
+      SOLUM.engine?.log?.('Módulo registrado: ' + nome, 'ok');
     },
 
-    modulo(nome){
-
-        if(!REGISTRY[nome]){
-            throw new Error("Módulo não encontrado: "+nome);
-        }
-
-        return REGISTRY[nome];
-
+    get(nome){
+      if(!modulos[nome]) throw new Error('Módulo não encontrado: ' + nome);
+      return modulos[nome];
     },
 
     listar(){
-
-        return Object.keys(REGISTRY);
-
+      return Object.keys(modulos);
     }
-
-};
-
+  };
 })();
