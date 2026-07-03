@@ -16,6 +16,10 @@
 
   await carregar('loader.js');
 
+  if(!window.SOLUM || !SOLUM.loader){
+    throw new Error('Loader não carregou.');
+  }
+
   await SOLUM.loader.boot({
     base: BASE,
     carregar
