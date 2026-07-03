@@ -1,22 +1,35 @@
-(async function(){
+(function(){
   if(window.SOLUM_RPA_APP) return;
   window.SOLUM_RPA_APP = true;
 
   const BASE = 'https://raw.githubusercontent.com/andreylson12/solum-rpa/main/';
 
-  async function carregarScript(nome){
-    const url = BASE + nome + '?v=' + Date.now();
-
-    const codigo = await fetch(url).then(r=>{
-      if(!r.ok) throw new Error('Erro ao carregar ' + nome);
-      return r.text();
+  function carregarScript(nome){
+    return new Promise((resolve, reject)=>{
+      const s = document.createElement('script');
+      s.src = BASE + nome + '?v=' + Date.now();
+      s.onload = () => {
+        console.log('✅ Carregado:', nome);
+        resolve();
+      };
+      s.onerror = () => reject(new Error('Erro ao carregar ' + nome));
+      document.head.appendChild(s);
     });
-
-    eval(codigo);
-    console.log('✅ Carregado:', nome);
   }
 
-  await carregarScript('engine.js');
+  async function iniciar(){
+    try{
+      await carregarScript('engine.js');
 
-  window.SolumEngine.iniciar();
+      if(!window.SolumEngine){
+        throw new Error('SolumEngine não foi criado.');
+      }
+
+      window.SolumEngine.iniciar();
+    }catch(e){
+      console.error('Erro ao iniciar SOLUM RPA:', e);
+    }
+  }
+
+  iniciar();
 })();
