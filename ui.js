@@ -52,6 +52,10 @@
             🔍 Mapear Tela
           </button>
 
+          <button id="btnPrimeiraTela" style="${this.btn('#f59e0b')}">
+            ▶ Preencher Primeira Tela
+          </button>
+
           <button id="btnTeste" style="${this.btn('#146b3a')}">
             Testar Engine
           </button>
@@ -107,6 +111,15 @@
 
       document.querySelector('#btnMapearTela').onclick = ()=>{
         SOLUM.engine.executar('mapearTela');
+      };
+
+      document.querySelector('#btnPrimeiraTela').onclick = ()=>{
+        if(!SOLUM.primeiraTela){
+          alert('Módulo primeira tela não carregado.');
+          return;
+        }
+
+        SOLUM.primeiraTela.executar();
       };
 
       document.querySelector('#btnTeste').onclick = ()=>{
