@@ -48,6 +48,10 @@
             ⬇ Baixar Arquivos do Ticket
           </button>
 
+          <button id="btnMapearTela" style="${this.btn('#2563eb')}">
+            🔍 Mapear Tela
+          </button>
+
           <button id="btnTeste" style="${this.btn('#146b3a')}">
             Testar Engine
           </button>
@@ -99,6 +103,10 @@
 
       document.querySelector('#btnBaixarTicket').onclick = ()=>{
         SOLUM.engine.executar('baixarArquivosTicket');
+      };
+
+      document.querySelector('#btnMapearTela').onclick = ()=>{
+        SOLUM.engine.executar('mapearTela');
       };
 
       document.querySelector('#btnTeste').onclick = ()=>{
