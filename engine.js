@@ -54,18 +54,21 @@
       });
     },
 
-    async executar(acao, payload){
-      if(acao === 'carregarArquivos'){
-        return await SOLUM.arquivos.carregar();
-      }
+  async executar(acao, payload){
+  if(acao === 'carregarArquivos'){
+    return await SOLUM.arquivos.carregar();
+  }
 
-      if(acao === 'baixarArquivosTicket'){
-  return await SOLUM.ticketDownloader.baixarTodos();
+  if(acao === 'baixarArquivosTicket'){
+    return await SOLUM.ticketDownloader.baixarTodos();
+  }
+
+  if(acao === 'mapearTela'){
+    return SOLUM.inspector.mapear();
+  }
+
+  throw new Error('Ação não registrada: ' + acao);
 }
-
-      throw new Error('Ação não registrada: ' + acao);
-    }
-  };
 
   SOLUM.engine = Engine;
 })();
