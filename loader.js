@@ -15,6 +15,8 @@ window.SOLUM_VERSAO = "0.1.0";
       await this.carregar('engine.js');
       await this.carregar('core/registry.js');
       await this.carregar('core/processo.js');
+      await this.carregar('config/primeira-tela.js');
+      await this.carregar('solum/actions.js');
 
       SOLUM.engine.iniciar();
       SOLUM.engine.log('Loader iniciado.', 'ok');
@@ -28,8 +30,8 @@ window.SOLUM_VERSAO = "0.1.0";
       await this.carregar('validators/ordem-validator.js');
       await this.carregar('solum/preenchimento.js');
       await this.carregar('tickets/ticket-downloader.js');
-      await this.carregar('config/primeira-tela.js');
-      await this.carregar('core/processo.js');
+      
+    
      
 
       await this.carregarPDFJS();
