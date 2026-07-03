@@ -36,18 +36,34 @@
 
         if(resultado[info.tipo] === null){
           resultado[info.tipo] = file;
-          SOLUM.engine.log(`${info.tipo.toUpperCase()} identificado: ${file.name} (${info.metodo})`, 'ok');
+
+          SOLUM.engine.log(
+            `${info.tipo.toUpperCase()} identificado: ${file.name} (${info.metodo})`,
+            'ok'
+          );
 
           if(info.tipo === 'ordem' && file.name.toLowerCase().endsWith('.pdf')){
             const texto = await SOLUM.pdf.ler(file);
+
             SOLUM.engine.estado.textos.ordem = texto;
 
             const dadosOrdem = SOLUM.parsers.extrair(texto);
             SOLUM.engine.estado.dados.ordem = dadosOrdem;
 
+            const validacao = SOLUM.validadorOrdem.validar(dadosOrdem);
+            SOLUM.engine.estado.validacaoOrdem = validacao;
+
+            SOLUM.engine.log(
+              `Validação: ${validacao.percentual}% (${validacao.status})`,
+              validacao.valido ? 'ok' : 'info'
+            );
+
             SOLUM.engine.log('Dados da ordem extraídos.', 'ok');
+
             SOLUM.engine.emitir('dadosOrdem', dadosOrdem);
+            SOLUM.engine.emitir('validacaoOrdem', validacao);
           }
+
         }else{
           resultado.extras.push(file);
           SOLUM.engine.log(`Arquivo extra: ${file.name}`, 'info');
@@ -56,6 +72,7 @@
 
       SOLUM.engine.estado.arquivos = resultado;
       SOLUM.engine.emitir('arquivos', resultado);
+
       SOLUM.engine.log('Classificação dos arquivos finalizada.', 'ok');
 
       return resultado;
