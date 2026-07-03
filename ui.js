@@ -44,6 +44,10 @@
             📦 Carregar Arquivos
           </button>
 
+          <button id="btnBaixarTicket" style="${this.btn('#0f766e')}">
+            ⬇ Baixar Arquivos do Ticket
+          </button>
+
           <button id="btnTeste" style="${this.btn('#146b3a')}">
             Testar Engine
           </button>
@@ -89,12 +93,16 @@
 
       this.logs = document.querySelector('#logsSolum');
 
-      document.querySelector('#btnTeste').onclick = ()=>{
-        SOLUM.engine.log('Botão funcionando.', 'ok');
-      };
-
       document.querySelector('#btnCarregarArquivos').onclick = ()=>{
         SOLUM.engine.executar('carregarArquivos');
+      };
+
+      document.querySelector('#btnBaixarTicket').onclick = ()=>{
+        SOLUM.engine.executar('baixarArquivosTicket');
+      };
+
+      document.querySelector('#btnTeste').onclick = ()=>{
+        SOLUM.engine.log('Botão funcionando.', 'ok');
       };
 
       SOLUM.engine.on('arquivos', arquivos=>{
