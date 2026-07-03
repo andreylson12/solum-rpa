@@ -28,12 +28,26 @@
         extras:[]
       };
 
+      SOLUM.engine.estado.textos = {};
+      SOLUM.engine.estado.dados = SOLUM.engine.estado.dados || {};
+
       for(const file of files){
         const info = await SOLUM.classificador.classificar(file);
 
         if(resultado[info.tipo] === null){
           resultado[info.tipo] = file;
           SOLUM.engine.log(`${info.tipo.toUpperCase()} identificado: ${file.name} (${info.metodo})`, 'ok');
+
+          if(info.tipo === 'ordem' && file.name.toLowerCase().endsWith('.pdf')){
+            const texto = await SOLUM.pdf.ler(file);
+            SOLUM.engine.estado.textos.ordem = texto;
+
+            const dadosOrdem = SOLUM.parsers.extrair(texto);
+            SOLUM.engine.estado.dados.ordem = dadosOrdem;
+
+            SOLUM.engine.log('Dados da ordem extraídos.', 'ok');
+            SOLUM.engine.emitir('dadosOrdem', dadosOrdem);
+          }
         }else{
           resultado.extras.push(file);
           SOLUM.engine.log(`Arquivo extra: ${file.name}`, 'info');
