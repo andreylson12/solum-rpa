@@ -59,6 +59,10 @@
         return await SOLUM.arquivos.carregar();
       }
 
+      if(acao === 'baixarArquivosTicket'){
+  return await SOLUM.ticketDownloader.baixarTodos();
+}
+
       throw new Error('Ação não registrada: ' + acao);
     }
   };
