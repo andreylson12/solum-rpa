@@ -12,6 +12,7 @@
         .toUpperCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[–—]/g, '-')
         .replace(/\s+/g, ' ')
         .trim();
     },
@@ -30,6 +31,38 @@
       }
 
       throw new Error('Elemento não encontrado: ' + selector);
+    },
+
+    async esperarHabilitar(selector, tempo=15000){
+      const inicio = Date.now();
+
+      while(Date.now() - inicio < tempo){
+        const el = document.querySelector(selector);
+
+        if(el && !el.disabled){
+          return el;
+        }
+
+        await this.esperar(300);
+      }
+
+      throw new Error('Campo não habilitou: ' + selector);
+    },
+
+    async esperarOpcoes(selector, minimo=2, tempo=15000){
+      const inicio = Date.now();
+
+      while(Date.now() - inicio < tempo){
+        const el = document.querySelector(selector);
+
+        if(el && el.options && el.options.length >= minimo){
+          return el;
+        }
+
+        await this.esperar(300);
+      }
+
+      throw new Error('Opções não carregaram: ' + selector);
     },
 
     setValor(el, valor){
@@ -53,6 +86,15 @@
 
     async selecionarSelector(selector, texto){
       const el = await this.esperarElemento(selector);
+
+      if(el.disabled){
+        await this.esperarHabilitar(selector);
+      }
+
+      if(el.tagName === 'SELECT'){
+        await this.esperarOpcoes(selector, 2);
+      }
+
       const alvo = this.normalizar(texto);
 
       if(el.tagName === 'SELECT'){
@@ -68,10 +110,12 @@
         }
 
         el.value = achou.value;
+        el.dispatchEvent(new Event('input', {bubbles:true}));
         el.dispatchEvent(new Event('change', {bubbles:true}));
+        el.dispatchEvent(new Event('blur', {bubbles:true}));
 
         SOLUM.engine.log('Selecionado: ' + texto, 'ok');
-        await this.esperar(300);
+        await this.esperar(500);
         return true;
       }
 
@@ -183,6 +227,7 @@
         }
 
         el.value = achou.value;
+        el.dispatchEvent(new Event('input', {bubbles:true}));
         el.dispatchEvent(new Event('change', {bubbles:true}));
         SOLUM.engine.log('Selecionado: ' + (label || texto), 'ok');
         await this.esperar(300);
