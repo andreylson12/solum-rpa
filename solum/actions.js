@@ -38,11 +38,7 @@
 
       while(Date.now() - inicio < tempo){
         const el = document.querySelector(selector);
-
-        if(el && !el.disabled){
-          return el;
-        }
-
+        if(el && !el.disabled) return el;
         await this.esperar(300);
       }
 
@@ -54,11 +50,7 @@
 
       while(Date.now() - inicio < tempo){
         const el = document.querySelector(selector);
-
-        if(el && el.options && el.options.length >= minimo){
-          return el;
-        }
-
+        if(el && el.options && el.options.length >= minimo) return el;
         await this.esperar(300);
       }
 
@@ -121,25 +113,47 @@
 
       this.setValor(el, texto);
       await this.esperar(500);
+      return true;
+    },
 
-      const opcoes = [...document.querySelectorAll(
-        '.ng-option, .select2-results__option, li, .dropdown-item'
-      )].filter(o=>this.visivel(o));
+    async selecionarUF(selector, uf){
+      const el = await this.esperarElemento(selector);
+      const alvo = String(uf || '').toUpperCase().trim();
 
-      const opcao = opcoes.find(o=>{
-        const txt = this.normalizar(o.innerText || o.textContent);
-        return txt.includes(alvo) || alvo.includes(txt);
-      });
-
-      if(opcao){
-        opcao.click();
-        SOLUM.engine.log('Selecionado via busca: ' + texto, 'ok');
-        await this.esperar(500);
-        return true;
+      if(el.disabled){
+        await this.esperarHabilitar(selector);
       }
 
-      SOLUM.engine.log('Campo pesquisável preenchido, mas opção não confirmada: ' + texto, 'info');
-      return false;
+      if(el.tagName === 'SELECT'){
+        await this.esperarOpcoes(selector, 2);
+      }
+
+      const opts = [...el.options];
+
+      const achou = opts.find(o=>{
+        const txt = this.normalizar(o.textContent);
+        const val = String(o.value || '').toUpperCase().trim();
+
+        return (
+          val === alvo ||
+          txt === alvo ||
+          txt.endsWith(' ' + alvo) ||
+          txt.includes(' - ' + alvo)
+        );
+      });
+
+      if(!achou){
+        throw new Error('UF não encontrada: ' + uf);
+      }
+
+      el.value = achou.value;
+      el.dispatchEvent(new Event('input', {bubbles:true}));
+      el.dispatchEvent(new Event('change', {bubbles:true}));
+      el.dispatchEvent(new Event('blur', {bubbles:true}));
+
+      SOLUM.engine.log('UF selecionada: ' + uf, 'ok');
+      await this.esperar(300);
+      return true;
     },
 
     async clicarPorTexto(texto){
