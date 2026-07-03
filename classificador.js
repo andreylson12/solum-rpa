@@ -1,43 +1,53 @@
 (function(){
-  if(window.SolumClassificador) return;
+  window.SOLUM = window.SOLUM || {};
+  if(SOLUM.classificador) return;
 
   const Classificador = {
-    porNome(file){
-      const nome = file.name.toLowerCase();
-
-      if(nome.endsWith('.xml')){
-        return {tipo:'xml', confianca:100, metodo:'nome'};
-      }
-
-      if(nome.endsWith('.xlsx') || nome.endsWith('.xls') || nome.endsWith('.xlsm') || nome.endsWith('.csv')){
-        return {tipo:'planilha', confianca:100, metodo:'nome'};
-      }
-
-      if(nome.includes('laudo') || nome.includes('classificacao') || nome.includes('classificação')){
-        return {tipo:'laudo', confianca:90, metodo:'nome'};
-      }
-
-      if(nome.includes('pesagem') || nome.includes('balanca') || nome.includes('balança') || nome.includes('peso')){
-        return {tipo:'pesagem', confianca:90, metodo:'nome'};
-      }
-
-      if(nome.includes('ordem') || nome.includes('oc') || nome.includes('carregamento')){
-        return {tipo:'ordem', confianca:80, metodo:'nome'};
-      }
-
-      return {tipo:'desconhecido', confianca:0, metodo:'nome'};
+    normalizar(t){
+      return String(t||'')
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'')
+        .replace(/\s+/g,' ')
+        .trim();
     },
 
     async classificar(file){
-      const r = this.porNome(file);
+      const nome = file.name.toLowerCase();
 
-      if(r.tipo !== 'desconhecido'){
-        return r;
+      if(nome.endsWith('.xml')) return {tipo:'xml', confianca:100, metodo:'extensao'};
+      if(nome.endsWith('.xlsx') || nome.endsWith('.xls') || nome.endsWith('.xlsm') || nome.endsWith('.csv')){
+        return {tipo:'planilha', confianca:100, metodo:'extensao'};
+      }
+
+      if(!nome.endsWith('.pdf')){
+        return {tipo:'desconhecido', confianca:0, metodo:'desconhecido'};
+      }
+
+      let texto = '';
+      try{
+        texto = await SOLUM.pdf.ler(file);
+      }catch(e){
+        SOLUM.engine.log('Não consegui ler PDF: ' + file.name, 'erro');
+      }
+
+      const t = this.normalizar(texto + ' ' + nome);
+
+      if(t.includes('UMIDADE') || t.includes('IMPUREZAS') || t.includes('CLASSIFICACAO')){
+        return {tipo:'laudo', confianca:95, metodo:'conteudo'};
+      }
+
+      if(t.includes('PESO BRUTO') || t.includes('PESO LIQUIDO') || t.includes('PESAGEM') || t.includes('BALANCA')){
+        return {tipo:'pesagem', confianca:95, metodo:'conteudo'};
+      }
+
+      if(t.includes('MOTORISTA') || t.includes('TRANSPORTADORA') || t.includes('CAVALO') || t.includes('ORDEM DE CARREGAMENTO')){
+        return {tipo:'ordem', confianca:90, metodo:'conteudo'};
       }
 
       return {tipo:'ordem', confianca:50, metodo:'fallback'};
     }
   };
 
-  window.SolumClassificador = Classificador;
+  SOLUM.classificador = Classificador;
 })();
