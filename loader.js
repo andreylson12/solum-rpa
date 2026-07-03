@@ -1,8 +1,8 @@
 (function(){
   if(window.SOLUM && window.SOLUM.loader) return;
 
-window.SOLUM = window.SOLUM || {};
-window.SOLUM_VERSAO = "0.1.0";
+  window.SOLUM = window.SOLUM || {};
+  window.SOLUM_VERSAO = "0.1.0";
 
   const Loader = {
     base:null,
@@ -15,13 +15,11 @@ window.SOLUM_VERSAO = "0.1.0";
       await this.carregar('engine.js');
       await this.carregar('core/registry.js');
       await this.carregar('core/processo.js');
-      await this.carregar('config/primeira-tela.js');
-      await this.carregar('solum/actions.js');
-      await this.carregar("solum/inspector.js");
 
       SOLUM.engine.iniciar();
       SOLUM.engine.log('Loader iniciado.', 'ok');
 
+      await this.carregar('config/primeira-tela.js');
       await this.carregar('ui.js');
       await this.carregar('classificador.js');
       await this.carregar('arquivos.js');
@@ -29,11 +27,10 @@ window.SOLUM_VERSAO = "0.1.0";
       await this.carregar('parsers/parser-manager.js');
       await this.carregar('parsers/futuro.js');
       await this.carregar('validators/ordem-validator.js');
+      await this.carregar('solum/actions.js');
+      await this.carregar('solum/inspector.js');
       await this.carregar('solum/preenchimento.js');
       await this.carregar('tickets/ticket-downloader.js');
-      
-    
-     
 
       await this.carregarPDFJS();
 
