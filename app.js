@@ -16,7 +16,8 @@
     console.log('✅ Carregado:', nome);
   }
 
-  await carregarScript('engine.js');
+await carregarScript('engine.js');
+await carregarScript('ui.js');
 
-  window.SolumEngine.iniciar();
-})();
+window.SolumEngine.iniciar();
+window.SolumUI.iniciar();
