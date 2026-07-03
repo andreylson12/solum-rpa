@@ -68,6 +68,19 @@
             </div>
           </div>
 
+          <div id="statusValidacao" style="
+            margin-top:8px;
+            margin-bottom:8px;
+            padding:8px;
+            border-radius:6px;
+            background:#eee;
+            font-size:12px;
+            font-weight:bold;
+            text-align:center;
+          ">
+            Aguardando leitura...
+          </div>
+
           <div id="logsSolum" style="max-height:250px;overflow:auto;font-size:12px;"></div>
         </div>
       `;
@@ -90,6 +103,10 @@
 
       SOLUM.engine.on('dadosOrdem', dados=>{
         this.mostrarDadosOrdem(dados);
+      });
+
+      SOLUM.engine.on('validacaoOrdem', validacao=>{
+        this.mostrarValidacao(validacao);
       });
     },
 
@@ -139,6 +156,26 @@
           <tr><td><b>Tipo</b></td><td>${d.tipoVeiculo||''}</td></tr>
         </table>
       `;
+    },
+
+    mostrarValidacao(v){
+      const el = document.querySelector('#statusValidacao');
+      if(!el) return;
+
+      if(v.valido){
+        el.style.background = '#d4edda';
+        el.style.color = '#155724';
+        el.innerHTML = `✅ ORDEM VALIDADA<br>Confiança: ${v.percentual}%`;
+      }else{
+        el.style.background = '#fff3cd';
+        el.style.color = '#856404';
+        el.innerHTML = `
+          ⚠️ DADOS INCOMPLETOS<br>
+          Confiança: ${v.percentual}%<br><br>
+          Faltando:<br>
+          ${v.faltando.join('<br>')}
+        `;
+      }
     },
 
     adicionarLog(log){
