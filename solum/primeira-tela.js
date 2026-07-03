@@ -24,7 +24,7 @@
       await SOLUM.actions.selecionarSelector('#tipoTransporte', cfg.tipoTransporte);
 
       await SOLUM.actions.preencherSelector('#placa', ordem.placaCavalo);
-      await SOLUM.actions.selecionarSelector('#uf', ordem.uf);
+      await SOLUM.actions.selecionarUF('#uf', ordem.uf);
       await SOLUM.actions.selecionarSelector('#tipoVeiculo', ordem.tipoVeiculo);
       await SOLUM.actions.preencherSelector('#nomeMotorista', ordem.motorista);
 
