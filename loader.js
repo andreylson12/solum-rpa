@@ -28,6 +28,7 @@ window.SOLUM_VERSAO = "0.1.0";
       await this.carregar('validators/ordem-validator.js');
       await this.carregar('solum/preenchimento.js');
       await this.carregar('tickets/ticket-downloader.js');
+      await this.carregar('config/primeira-tela.js');
      
 
       await this.carregarPDFJS();
