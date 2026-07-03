@@ -18,8 +18,9 @@
 
 await carregarScript('engine.js');
 await carregarScript('ui.js');
+await carregarScript('classificador.js');
 await carregarScript('arquivos.js');
-
+  
   window.SolumEngine.iniciar();
   window.SolumUI.iniciar();
 })();
