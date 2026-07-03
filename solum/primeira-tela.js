@@ -15,7 +15,12 @@
       SOLUM.engine.log('Iniciando preenchimento da primeira tela...', 'info');
 
       await SOLUM.actions.selecionarSelector('#unidadeNegocio', cfg.unidadeNegocio);
+      await SOLUM.actions.esperar(800);
+
       await SOLUM.actions.selecionarSelector('#processo', cfg.processo);
+      await SOLUM.actions.esperarHabilitar('#operacao');
+      await SOLUM.actions.esperarOpcoes('#operacao', 2);
+
       await SOLUM.actions.selecionarSelector('#tipoTransporte', cfg.tipoTransporte);
 
       await SOLUM.actions.preencherSelector('#placa', ordem.placaCavalo);
