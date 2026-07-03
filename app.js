@@ -4,24 +4,20 @@
 
   const BASE = 'https://raw.githubusercontent.com/andreylson12/solum-rpa/main/';
 
-  async function carregarScript(nome){
+  async function carregar(nome){
     const url = BASE + nome + '?v=' + Date.now();
-
     const codigo = await fetch(url).then(r=>{
       if(!r.ok) throw new Error('Erro ao carregar ' + nome);
       return r.text();
     });
-
     eval(codigo);
     console.log('✅ Carregado:', nome);
   }
 
-  await carregarScript('engine.js');
-  await carregarScript("core/registry.js");
-  await carregarScript('ui.js');
-  await carregarScript('classificador.js');
-  await carregarScript('arquivos.js');
+  await carregar('loader.js');
 
-  window.SolumEngine.iniciar();
-  window.SolumUI.iniciar();
+  await SOLUM.loader.boot({
+    base: BASE,
+    carregar
+  });
 })();
