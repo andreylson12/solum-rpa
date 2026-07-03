@@ -3,26 +3,26 @@
   if(SOLUM.engine) return;
 
   const Engine = {
-    versao:'0.1.0',
+    versao: '0.1.0',
 
-    estado:{
-      etapa:'inicial',
-      arquivos:{},
-      dados:{},
-      erros:[]
+    estado: {
+      etapa: 'inicial',
+      arquivos: {},
+      dados: {},
+      erros: []
     },
 
-    logs:[],
-    eventos:{},
+    logs: [],
+    eventos: {},
 
     iniciar(){
       this.log('Engine iniciado.', 'ok');
-      this.setEstado('etapa','engine_iniciado');
+      this.setEstado('etapa', 'engine_iniciado');
     },
 
-    log(mensagem,tipo='info'){
+    log(mensagem, tipo='info'){
       const item = {
-        hora:new Date().toLocaleTimeString(),
+        hora: new Date().toLocaleTimeString(),
         tipo,
         mensagem
       };
@@ -33,7 +33,7 @@
       return item;
     },
 
-    setEstado(chave,valor){
+    setEstado(chave, valor){
       this.estado[chave] = valor;
       this.emitir('estado', this.estado);
     },
@@ -42,33 +42,37 @@
       return this.estado[chave];
     },
 
-    on(evento,callback){
+    on(evento, callback){
       if(!this.eventos[evento]) this.eventos[evento] = [];
       this.eventos[evento].push(callback);
     },
 
-    emitir(evento,dados){
+    emitir(evento, dados){
       (this.eventos[evento] || []).forEach(fn=>{
-        try{ fn(dados); }
-        catch(e){ console.error('Erro no evento:', evento, e); }
+        try{
+          fn(dados);
+        }catch(e){
+          console.error('Erro no evento:', evento, e);
+        }
       });
     },
 
-  async executar(acao, payload){
-  if(acao === 'carregarArquivos'){
-    return await SOLUM.arquivos.carregar();
-  }
+    async executar(acao, payload){
+      if(acao === 'carregarArquivos'){
+        return await SOLUM.arquivos.carregar();
+      }
 
-  if(acao === 'baixarArquivosTicket'){
-    return await SOLUM.ticketDownloader.baixarTodos();
-  }
+      if(acao === 'baixarArquivosTicket'){
+        return await SOLUM.ticketDownloader.baixarTodos();
+      }
 
-  if(acao === 'mapearTela'){
-    return SOLUM.inspector.mapear();
-  }
+      if(acao === 'mapearTela'){
+        return SOLUM.inspector.mapear();
+      }
 
-  throw new Error('Ação não registrada: ' + acao);
-}
+      throw new Error('Ação não registrada: ' + acao);
+    }
+  };
 
   SOLUM.engine = Engine;
 })();
