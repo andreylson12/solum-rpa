@@ -12,21 +12,15 @@
       return r.text();
     });
 
-    async function carregarExterno(url){
-    const codigo = await fetch(url).then(r=>{
-        if(!r.ok) throw new Error("Erro carregando biblioteca");
-        return r.text();
-    });
-
     eval(codigo);
     console.log('✅ Carregado:', nome);
   }
 
-await carregarScript('engine.js');
-await carregarScript('ui.js');
-await carregarScript('classificador.js');
-await carregarScript('arquivos.js');
-  
+  await carregarScript('engine.js');
+  await carregarScript('ui.js');
+  await carregarScript('classificador.js');
+  await carregarScript('arquivos.js');
+
   window.SolumEngine.iniciar();
   window.SolumUI.iniciar();
 })();
