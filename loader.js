@@ -1,50 +1,50 @@
 (function(){
+  if(window.SOLUM && window.SOLUM.loader) return;
 
-if(window.SolumLoader) return;
+  window.SOLUM = window.SOLUM || {};
 
-const Loader = {
+  const Loader = {
+    base:null,
+    carregar:null,
 
-    bibliotecas:{},
+    async boot(config){
+      this.base = config.base;
+      this.carregar = config.carregar;
 
-    async carregar(url){
+      await this.carregar('engine.js');
+      await this.carregar('core/registry.js');
 
-        if(this.bibliotecas[url]){
-            return;
-        }
+      SOLUM.engine.iniciar();
+      SOLUM.engine.log('Loader iniciado.', 'ok');
 
-        const codigo = await fetch(url).then(r=>{
+      await this.carregar('ui.js');
+      await this.carregar('classificador.js');
+      await this.carregar('arquivos.js');
+      await this.carregar('pdf-reader.js');
 
-            if(!r.ok){
-                throw new Error("Erro carregando: " + url);
-            }
+      await this.carregarPDFJS();
 
-            return r.text();
+      SOLUM.ui.iniciar();
 
-        });
-
-        eval(codigo);
-
-        this.bibliotecas[url]=true;
-
-        SolumEngine.log("Biblioteca carregada.","ok");
-
+      SOLUM.engine.log('SOLUM RPA pronto para uso.', 'ok');
     },
 
-    async inicializar(){
+    async carregarPDFJS(){
+      if(window.pdfjsLib){
+        SOLUM.engine.log('PDF.js já estava carregado.', 'ok');
+        return;
+      }
 
-        await this.carregar(
-            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"
-        );
+      const url = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+      const codigo = await fetch(url).then(r=>r.text());
+      eval(codigo);
 
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-        SolumEngine.log("PDF.js pronto.","ok");
-
+      SOLUM.engine.log('PDF.js carregado.', 'ok');
     }
+  };
 
-};
-
-window.SolumLoader = Loader;
-
+  SOLUM.loader = Loader;
 })();
