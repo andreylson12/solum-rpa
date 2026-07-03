@@ -12,6 +12,12 @@
       return r.text();
     });
 
+    async function carregarExterno(url){
+    const codigo = await fetch(url).then(r=>{
+        if(!r.ok) throw new Error("Erro carregando biblioteca");
+        return r.text();
+    });
+
     eval(codigo);
     console.log('✅ Carregado:', nome);
   }
