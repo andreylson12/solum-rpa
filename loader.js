@@ -14,6 +14,7 @@ window.SOLUM_VERSAO = "0.1.0";
 
       await this.carregar('engine.js');
       await this.carregar('core/registry.js');
+      await this.carregar('core/processo.js');
 
       SOLUM.engine.iniciar();
       SOLUM.engine.log('Loader iniciado.', 'ok');
