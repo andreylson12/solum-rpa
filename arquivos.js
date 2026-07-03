@@ -50,7 +50,7 @@
       };
 
       for(const file of files){
-        const info = this.classificar(file);
+        const info = await SolumClassificador.classificar(file);
 
         if(resultado[info.tipo] === null){
           resultado[info.tipo] = file;
