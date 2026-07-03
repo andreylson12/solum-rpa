@@ -22,6 +22,7 @@ window.SOLUM_VERSAO = "0.1.0";
       await this.carregar('classificador.js');
       await this.carregar('arquivos.js');
       await this.carregar('pdf-reader.js');
+      await this.carregar('parsers/parser-manager.js');
 
       await this.carregarPDFJS();
 
