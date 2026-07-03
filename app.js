@@ -17,6 +17,7 @@
   }
 
   await carregarScript('engine.js');
+  await carregarScript("core/registry.js");
   await carregarScript('ui.js');
   await carregarScript('classificador.js');
   await carregarScript('arquivos.js');
