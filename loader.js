@@ -1,7 +1,8 @@
 (function(){
   if(window.SOLUM && window.SOLUM.loader) return;
 
-  window.SOLUM = window.SOLUM || {};
+window.SOLUM = window.SOLUM || {};
+window.SOLUM_VERSAO = "0.1.0";
 
   const Loader = {
     base:null,
