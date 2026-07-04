@@ -21,6 +21,8 @@
       SOLUM.engine.iniciar();
       SOLUM.engine.log('Loader iniciado.', 'ok');
 
+      await this.carregarBibliotecas();
+
       await this.carregar('config/primeira-tela.js');
       await this.carregar('ui.js');
       await this.carregar('classificador.js');
@@ -37,11 +39,14 @@
       await this.carregar('solum/endereco-remessa.js');
       await this.carregar('readers/xlsx-reader.js');
 
-      await this.carregarPDFJS();
-
       SOLUM.ui.iniciar();
 
       SOLUM.engine.log('SOLUM RPA pronto para uso.', 'ok');
+    },
+
+    async carregarBibliotecas(){
+      await this.carregarPDFJS();
+      await this.carregarXLSX();
     },
 
     async carregarPDFJS(){
@@ -58,6 +63,19 @@
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
       SOLUM.engine.log('PDF.js carregado.', 'ok');
+    },
+
+    async carregarXLSX(){
+      if(window.XLSX){
+        SOLUM.engine.log('XLSX já estava carregado.', 'ok');
+        return;
+      }
+
+      const url = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      const codigo = await fetch(url).then(r=>r.text());
+      eval(codigo);
+
+      SOLUM.engine.log('XLSX carregado.', 'ok');
     }
   };
 
