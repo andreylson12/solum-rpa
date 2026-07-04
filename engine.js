@@ -70,6 +70,10 @@
         return SOLUM.inspector.mapear();
       }
 
+      if(acao === 'iniciarTroca'){
+  return await SOLUM.pipeline.executar();
+}
+
       throw new Error('Ação não registrada: ' + acao);
     }
   };
