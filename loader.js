@@ -32,6 +32,7 @@
       await this.carregar('solum/preenchimento.js');
       await this.carregar('tickets/ticket-downloader.js');
       await this.carregar('solum/primeira-tela.js');
+      await this.carregar('readers/xlsx-reader.js');
 
       await this.carregarPDFJS();
 
