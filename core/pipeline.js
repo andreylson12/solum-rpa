@@ -3,27 +3,24 @@
   if(SOLUM.pipeline) return;
 
   const Pipeline = {
-    etapas: [],
-
-    registrar(nome, fn){
-      this.etapas.push({ nome, fn });
-    },
-
     async executar(){
-      SOLUM.engine.log('Pipeline iniciado.', 'info');
+      SOLUM.engine.log('🚀 Iniciando troca de nota...', 'info');
 
-      for(const etapa of this.etapas){
-        try{
-          SOLUM.engine.log('Executando etapa: ' + etapa.nome, 'info');
-          await etapa.fn();
-          SOLUM.engine.log('Etapa concluída: ' + etapa.nome, 'ok');
-        }catch(e){
-          SOLUM.engine.log('Erro na etapa ' + etapa.nome + ': ' + e.message, 'erro');
-          throw e;
-        }
+      const validacao = SOLUM.context?.validacao?.ordem || SOLUM.engine.estado.validacaoOrdem;
+
+      if(!validacao || !validacao.valido){
+        alert('A ordem ainda não está validada. Carregue os arquivos primeiro.');
+        SOLUM.engine.log('Pipeline bloqueado: ordem não validada.', 'erro');
+        return false;
       }
 
-      SOLUM.engine.log('Pipeline finalizado.', 'ok');
+      await SOLUM.primeiraTela.executar();
+
+      await SOLUM.enderecoRemessa.executar();
+
+      SOLUM.engine.log('✅ Primeira tela concluída pelo pipeline.', 'ok');
+
+      return true;
     }
   };
 
