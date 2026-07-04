@@ -15,15 +15,49 @@
       });
     },
 
+    async processarOrdem(file, resultado){
+      const texto = await SOLUM.pdf.ler(file);
+
+      SOLUM.context.textos.ordem = texto;
+      SOLUM.engine.estado.textos = SOLUM.engine.estado.textos || {};
+      SOLUM.engine.estado.textos.ordem = texto;
+
+      const dadosOrdem = SOLUM.parsers.extrair(texto);
+
+      if(!dadosOrdem || dadosOrdem.transportadora === "NÃO IDENTIFICADA"){
+        return false;
+      }
+
+      resultado.ordem = file;
+      SOLUM.context.dados.ordem = dadosOrdem;
+      SOLUM.engine.estado.dados.ordem = dadosOrdem;
+
+      const validacao = SOLUM.validadorOrdem.validar(dadosOrdem);
+
+      SOLUM.context.validacao.ordem = validacao;
+      SOLUM.engine.estado.validacaoOrdem = validacao;
+
+      SOLUM.engine.log(`ORDEM processada: ${file.name}`, "ok");
+      SOLUM.engine.log(
+        `Validação: ${validacao.percentual}% (${validacao.status})`,
+        validacao.valido ? "ok" : "info"
+      );
+
+      SOLUM.engine.emitir("dadosOrdem", dadosOrdem);
+      SOLUM.engine.emitir("validacaoOrdem", validacao);
+
+      return true;
+    },
+
     async carregar(){
 
       SOLUM.engine.log("Selecionando arquivos...","info");
 
-      const files=await this.escolher();
+      const files = await this.escolher();
 
       SOLUM.context.reset();
 
-      const resultado={
+      const resultado = {
         xml:null,
         planilha:null,
         ordem:null,
@@ -32,76 +66,77 @@
         extras:[]
       };
 
+      const pdfsParaRevisar = [];
+
       for(const file of files){
 
-        const info=await SOLUM.classificador.classificar(file);
+        const info = await SOLUM.classificador.classificar(file);
 
-        if(resultado[info.tipo]===null){
+        if(resultado[info.tipo] === null){
 
-          resultado[info.tipo]=file;
+          resultado[info.tipo] = file;
 
           SOLUM.engine.log(
             `${info.tipo.toUpperCase()} identificado: ${file.name} (${info.metodo})`,
             "ok"
           );
 
-          if(info.tipo==="planilha"){
-            const dadosPlanilha=await SOLUM.xlsxReader.ler(file);
+          if(info.tipo === "planilha"){
+            const dadosPlanilha = await SOLUM.xlsxReader.ler(file);
 
-            SOLUM.context.dados.planilha=dadosPlanilha;
-            SOLUM.engine.estado.dados.planilha=dadosPlanilha;
+            SOLUM.context.dados.planilha = dadosPlanilha;
+            SOLUM.engine.estado.dados.planilha = dadosPlanilha;
 
-            SOLUM.engine.emitir("dadosPlanilha",dadosPlanilha);
+            SOLUM.engine.emitir("dadosPlanilha", dadosPlanilha);
             SOLUM.engine.log("Planilha processada.","ok");
           }
 
-          if(info.tipo==="ordem" && file.name.toLowerCase().endsWith(".pdf")){
-            const texto=await SOLUM.pdf.ler(file);
-
-            SOLUM.context.textos.ordem=texto;
-            SOLUM.engine.estado.textos=SOLUM.engine.estado.textos||{};
-            SOLUM.engine.estado.textos.ordem=texto;
-
-            const dadosOrdem=SOLUM.parsers.extrair(texto);
-
-            SOLUM.context.dados.ordem=dadosOrdem;
-            SOLUM.engine.estado.dados.ordem=dadosOrdem;
-
-            const validacao=SOLUM.validadorOrdem.validar(dadosOrdem);
-
-            SOLUM.context.validacao.ordem=validacao;
-            SOLUM.engine.estado.validacaoOrdem=validacao;
-
-            SOLUM.engine.log(
-              `Validação: ${validacao.percentual}% (${validacao.status})`,
-              validacao.valido ? "ok" : "info"
-            );
-
-            SOLUM.engine.emitir("dadosOrdem",dadosOrdem);
-            SOLUM.engine.emitir("validacaoOrdem",validacao);
+          if(info.tipo === "ordem" && file.name.toLowerCase().endsWith(".pdf")){
+            await this.processarOrdem(file, resultado);
           }
 
-          if(info.tipo==="xml"){
+          if(info.tipo === "xml"){
             SOLUM.engine.log("XML identificado. Leitor XML será conectado na próxima etapa.","info");
           }
 
-          if(info.tipo==="laudo"){
+          if(info.tipo === "laudo"){
             SOLUM.engine.log("Laudo identificado. Leitor de laudo será conectado depois.","info");
           }
 
-          if(info.tipo==="pesagem"){
+          if(info.tipo === "pesagem"){
             SOLUM.engine.log("Pesagem identificada. Leitor de pesagem será conectado depois.","info");
           }
 
         }else{
           resultado.extras.push(file);
           SOLUM.engine.log(`Arquivo extra: ${file.name}`,"info");
+
+          if(file.name.toLowerCase().endsWith(".pdf")){
+            pdfsParaRevisar.push(file);
+          }
         }
       }
 
-      SOLUM.context.arquivos=resultado;
-      SOLUM.engine.estado.arquivos=resultado;
-      SOLUM.engine.emitir("arquivos",resultado);
+      if(!resultado.ordem && pdfsParaRevisar.length){
+        SOLUM.engine.log("Ordem não encontrada na primeira varredura. Revisando PDFs extras...", "info");
+
+        for(const file of pdfsParaRevisar){
+          try{
+            const ok = await this.processarOrdem(file, resultado);
+
+            if(ok){
+              SOLUM.engine.log("Ordem encontrada nos extras: " + file.name, "ok");
+              break;
+            }
+          }catch(e){
+            SOLUM.engine.log("PDF extra não é ordem: " + file.name, "info");
+          }
+        }
+      }
+
+      SOLUM.context.arquivos = resultado;
+      SOLUM.engine.estado.arquivos = resultado;
+      SOLUM.engine.emitir("arquivos", resultado);
 
       SOLUM.engine.log("Todos os arquivos foram processados.","ok");
 
@@ -109,5 +144,5 @@
     }
   };
 
-  SOLUM.arquivos=Arquivos;
+  SOLUM.arquivos = Arquivos;
 })();
