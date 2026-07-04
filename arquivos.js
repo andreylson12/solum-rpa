@@ -21,6 +21,8 @@
 
       const files=await this.escolher();
 
+      SOLUM.context.reset();
+
       const resultado={
         xml:null,
         planilha:null,
@@ -29,9 +31,6 @@
         pesagem:null,
         extras:[]
       };
-
-      SOLUM.engine.estado.textos={};
-      SOLUM.engine.estado.dados=SOLUM.engine.estado.dados||{};
 
       for(const file of files){
 
@@ -46,50 +45,31 @@
             "ok"
           );
 
-          //===========================
-          // PLANILHA
-          //===========================
-
           if(info.tipo==="planilha"){
+            const dadosPlanilha=await SOLUM.xlsxReader.ler(file);
 
-            const dadosPlanilha=
-              await SOLUM.xlsxReader.ler(file);
-
+            SOLUM.context.dados.planilha=dadosPlanilha;
             SOLUM.engine.estado.dados.planilha=dadosPlanilha;
 
-            SOLUM.engine.emitir(
-              "dadosPlanilha",
-              dadosPlanilha
-            );
-
-            SOLUM.engine.log(
-              "Planilha processada.",
-              "ok"
-            );
-
+            SOLUM.engine.emitir("dadosPlanilha",dadosPlanilha);
+            SOLUM.engine.log("Planilha processada.","ok");
           }
 
-          //===========================
-          // ORDEM
-          //===========================
-
-          if(
-            info.tipo==="ordem" &&
-            file.name.toLowerCase().endsWith(".pdf")
-          ){
-
+          if(info.tipo==="ordem" && file.name.toLowerCase().endsWith(".pdf")){
             const texto=await SOLUM.pdf.ler(file);
 
+            SOLUM.context.textos.ordem=texto;
+            SOLUM.engine.estado.textos=SOLUM.engine.estado.textos||{};
             SOLUM.engine.estado.textos.ordem=texto;
 
-            const dadosOrdem=
-              SOLUM.parsers.extrair(texto);
+            const dadosOrdem=SOLUM.parsers.extrair(texto);
 
+            SOLUM.context.dados.ordem=dadosOrdem;
             SOLUM.engine.estado.dados.ordem=dadosOrdem;
 
-            const validacao=
-              SOLUM.validadorOrdem.validar(dadosOrdem);
+            const validacao=SOLUM.validadorOrdem.validar(dadosOrdem);
 
+            SOLUM.context.validacao.ordem=validacao;
             SOLUM.engine.estado.validacaoOrdem=validacao;
 
             SOLUM.engine.log(
@@ -97,88 +77,37 @@
               validacao.valido ? "ok" : "info"
             );
 
-            SOLUM.engine.emitir(
-              "dadosOrdem",
-              dadosOrdem
-            );
-
-            SOLUM.engine.emitir(
-              "validacaoOrdem",
-              validacao
-            );
-
+            SOLUM.engine.emitir("dadosOrdem",dadosOrdem);
+            SOLUM.engine.emitir("validacaoOrdem",validacao);
           }
-
-          //===========================
-          // XML
-          //===========================
 
           if(info.tipo==="xml"){
-
-            SOLUM.engine.log(
-              "XML identificado. (Leitor será implementado na próxima etapa.)",
-              "info"
-            );
-
+            SOLUM.engine.log("XML identificado. Leitor XML será conectado na próxima etapa.","info");
           }
-
-          //===========================
-          // LAUDO
-          //===========================
 
           if(info.tipo==="laudo"){
-
-            SOLUM.engine.log(
-              "Laudo identificado. (Leitor será implementado na próxima etapa.)",
-              "info"
-            );
-
+            SOLUM.engine.log("Laudo identificado. Leitor de laudo será conectado depois.","info");
           }
 
-          //===========================
-          // PESAGEM
-          //===========================
-
           if(info.tipo==="pesagem"){
-
-            SOLUM.engine.log(
-              "Pesagem identificada. (Leitor será implementado na próxima etapa.)",
-              "info"
-            );
-
+            SOLUM.engine.log("Pesagem identificada. Leitor de pesagem será conectado depois.","info");
           }
 
         }else{
-
           resultado.extras.push(file);
-
-          SOLUM.engine.log(
-            `Arquivo extra: ${file.name}`,
-            "info"
-          );
-
+          SOLUM.engine.log(`Arquivo extra: ${file.name}`,"info");
         }
-
       }
 
+      SOLUM.context.arquivos=resultado;
       SOLUM.engine.estado.arquivos=resultado;
+      SOLUM.engine.emitir("arquivos",resultado);
 
-      SOLUM.engine.emitir(
-        "arquivos",
-        resultado
-      );
-
-      SOLUM.engine.log(
-        "Todos os arquivos foram processados.",
-        "ok"
-      );
+      SOLUM.engine.log("Todos os arquivos foram processados.","ok");
 
       return resultado;
-
     }
-
   };
 
   SOLUM.arquivos=Arquivos;
-
 })();
