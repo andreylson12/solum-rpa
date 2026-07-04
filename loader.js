@@ -15,6 +15,7 @@
       await this.carregar('engine.js');
       await this.carregar('core/registry.js');
       await this.carregar('core/processo.js');
+      await this.carregar('core/pipeline.js');
 
       SOLUM.engine.iniciar();
       SOLUM.engine.log('Loader iniciado.', 'ok');
