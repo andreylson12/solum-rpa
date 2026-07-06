@@ -47,6 +47,7 @@
     async carregarBibliotecas(){
       await this.carregarPDFJS();
       await this.carregarXLSX();
+      await this.carregarTesseract();
     },
 
     async carregarPDFJS(){
@@ -76,6 +77,19 @@
       eval(codigo);
 
       SOLUM.engine.log('XLSX carregado.', 'ok');
+    },
+
+    async carregarTesseract(){
+      if(window.Tesseract){
+        SOLUM.engine.log('Tesseract já estava carregado.', 'ok');
+        return;
+      }
+
+      const url = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      const codigo = await fetch(url).then(r=>r.text());
+      eval(codigo);
+
+      SOLUM.engine.log('Tesseract OCR carregado.', 'ok');
     }
   };
 
