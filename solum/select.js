@@ -119,24 +119,25 @@
       return true;
     },
 
-    async selecionarProdutor(bp){
-      const alvo = String(bp || '').replace(/\D/g, '');
+   async selecionarProdutor(identificador){
+  const alvo = String(identificador || '').replace(/\D/g, '');
 
-      const campo =
-        document.querySelector('#produtor') ||
-        document.querySelector('[formcontrolname="produtor"]') ||
-        [...document.querySelectorAll('input')]
-          .find(i => this.normalizar(i.placeholder).includes('PRODUTOR'));
+  const campo =
+    document.querySelector('#produtor') ||
+    document.querySelector('[formcontrolname="produtor"]') ||
+    [...document.querySelectorAll('input')]
+      .find(i => this.normalizar(i.placeholder).includes('PRODUTOR'));
 
-      if(!campo){
-        throw new Error('Campo Produtor não encontrado.');
-      }
+  if(!campo){
+    throw new Error('Campo Produtor não encontrado.');
+  }
 
-      await this.selecionarPorTexto(campo, alvo);
+  await this.selecionarPorTexto(campo, alvo);
 
-      SOLUM.engine.log('Produtor selecionado pelo BP: ' + alvo, 'ok');
+  SOLUM.engine.log('Produtor selecionado: ' + alvo, 'ok');
 
-      return true;
+  return true;
+
     },
 
     async selecionarFazendaPorIE(ie){
