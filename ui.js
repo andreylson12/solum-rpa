@@ -77,6 +77,10 @@
                 🚀 Iniciar Troca
             </button>
 
+            <button id="btnNotaFiscal" style="${this.btn("#0891b2")}">
+                🧾 Testar Nota Fiscal
+            </button>
+
             <button id="btnMapearTela" style="${this.btn("#2563eb")}">
                 🔍 Mapear Tela
             </button>
@@ -157,6 +161,10 @@
 
       document.querySelector("#btnIniciarTroca").onclick=()=>{
           SOLUM.engine.executar("iniciarTroca");
+      };
+
+      document.querySelector("#btnNotaFiscal").onclick=()=>{
+          SOLUM.engine.executar("notaFiscal");
       };
 
       document.querySelector("#btnMapearTela").onclick=()=>{
