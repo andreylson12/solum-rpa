@@ -18,7 +18,11 @@
 
       await SOLUM.enderecoRemessa.executar();
 
-      SOLUM.engine.log('✅ Primeira tela concluída pelo pipeline.', 'ok');
+      SOLUM.engine.log('✅ Primeira tela concluída.', 'ok');
+
+      await SOLUM.ticket.gerar();
+
+      SOLUM.engine.log('✅ Ticket gerado/confirmado.', 'ok');
 
       return true;
     }
