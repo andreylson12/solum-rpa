@@ -8,6 +8,7 @@
         .toUpperCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g,'')
+        .replace(/[–—]/g,'-')
         .replace(/\s+/g,' ')
         .trim();
     },
@@ -45,10 +46,9 @@
         'ORDEM DE CARREGAMENTO',
         'MOTORISTA',
         'CPF',
-        'PLACA',
         'CAVALO',
         'CARRETA',
-        'VEICULO',
+        'TIPO DO VEICULO',
         'TRANSPORTADORA'
       ]);
 
@@ -57,28 +57,32 @@
         'CLASSIFICACAO',
         'UMIDADE',
         'IMPUREZAS',
+        'QUEBRADOS',
+        'ARDIDOS',
         'AVARIADOS',
-        'QUEBRADOS'
+        'AGROSERVICE'
       ]);
 
       const pesagemScore = this.score(t, [
-        'PESAGEM',
-        'PESO BRUTO',
-        'PESO LIQUIDO',
-        'TARA',
-        'BALANCA'
+        'TICKET',
+        'ENTRADA',
+        'SAIDA',
+        'LIQUIDO',
+        'PESO',
+        'PLACA',
+        'EXPEDICAO'
       ]);
 
-      if(ordemScore >= 3 && ordemScore >= laudoScore && ordemScore >= pesagemScore){
-        return {tipo:'ordem', confianca:90, metodo:'conteudo-estrutura'};
-      }
-
       if(laudoScore >= 2){
-        return {tipo:'laudo', confianca:90, metodo:'conteudo'};
+        return {tipo:'laudo', confianca:90, metodo:'conteudo-ocr'};
       }
 
-      if(pesagemScore >= 2){
-        return {tipo:'pesagem', confianca:90, metodo:'conteudo'};
+      if(pesagemScore >= 4){
+        return {tipo:'pesagem', confianca:90, metodo:'conteudo-ocr'};
+      }
+
+      if(ordemScore >= 3){
+        return {tipo:'ordem', confianca:90, metodo:'conteudo-estrutura'};
       }
 
       return {tipo:'desconhecido', confianca:0, metodo:'sem-fallback'};
