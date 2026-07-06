@@ -41,6 +41,7 @@
       await this.carregar('solum/nota-fiscal.js');
       await this.carregar('readers/xlsx-reader.js');
       await this.carregar('readers/xml-reader.js');
+      await this.carregar('solum/select.js');
 
       SOLUM.ui.iniciar();
 
