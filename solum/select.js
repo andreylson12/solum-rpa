@@ -186,7 +186,7 @@
 
   await this.esperar(1000);
   return true;
-}
+},
 
     async selecionarModelo55(){
       const campo = document.querySelector('#modeloNFId');
