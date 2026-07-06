@@ -44,7 +44,7 @@
 
       if(!inputBusca) throw new Error('Campo de pesquisa do BP não encontrado.');
 
-      SOLUM.actions.setValor(inputBusca, bp + ' ');
+      SOLUM.actions.setValor(inputBusca, bp);
       SOLUM.engine.log('BP pesquisado: ' + bp, 'ok');
 
       await SOLUM.actions.esperar(1500);
