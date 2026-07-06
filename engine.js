@@ -71,8 +71,12 @@
       }
 
       if(acao === 'iniciarTroca'){
-  return await SOLUM.pipeline.executar();
-}
+        return await SOLUM.pipeline.executar();
+      }
+
+      if(acao === 'notaFiscal'){
+        return await SOLUM.notaFiscal.executar();
+      }
 
       throw new Error('Ação não registrada: ' + acao);
     }
