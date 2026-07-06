@@ -44,8 +44,25 @@
 
       if(!inputBusca) throw new Error('Campo de pesquisa do BP não encontrado.');
 
-      SOLUM.actions.setValor(inputBusca, bp);
-      SOLUM.engine.log('BP pesquisado: ' + bp, 'ok');
+     inputBusca.focus();
+      inputBusca.value = '';
+
+     inputBusca.dispatchEvent(new Event('input', {bubbles:true}));
+
+     inputBusca.value = bp;
+
+    inputBusca.dispatchEvent(new InputEvent('input', {
+    bubbles:true,
+   inputType:'insertText',
+   data:bp
+  }));
+
+inputBusca.dispatchEvent(new KeyboardEvent('keyup', {
+  bubbles:true,
+  key:'0'
+}));
+
+SOLUM.engine.log('BP pesquisado: ' + bp, 'ok');
 
       await SOLUM.actions.esperar(1500);
 
