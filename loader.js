@@ -37,6 +37,7 @@
       await this.carregar('tickets/ticket-downloader.js');
       await this.carregar('solum/primeira-tela.js');
       await this.carregar('solum/endereco-remessa.js');
+      await this.carregar('solum/ticket.js');
       await this.carregar('readers/xlsx-reader.js');
 
       SOLUM.ui.iniciar();
