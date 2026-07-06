@@ -100,11 +100,20 @@
 
         const info = await SOLUM.classificador.classificar(file);
 
-        if(info.tipo === "xml" && !resultado.xml){
-          resultado.xml = file;
-          SOLUM.engine.log(`XML identificado: ${file.name} (${info.metodo})`, "ok");
-          continue;
-        }
+     if(info.tipo === "xml" && !resultado.xml){
+     resultado.xml = file;
+
+     SOLUM.engine.log(`XML identificado: ${file.name} (${info.metodo})`, "ok");
+
+      const dadosXml = await SOLUM.xmlReader.ler(file);
+
+     SOLUM.context.dados.xml = dadosXml;
+     SOLUM.engine.estado.dados.xml = dadosXml;
+
+     SOLUM.engine.log("XML processado.", "ok");
+
+    continue;
+    }
 
         if(info.tipo === "planilha" && !resultado.planilha){
           resultado.planilha = file;
