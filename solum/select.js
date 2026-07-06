@@ -144,19 +144,49 @@
     },
 
     async selecionarFazendaPorIE(ie){
-      const alvo = String(ie || '').replace(/\D/g, '');
+  const alvo = String(ie || '').replace(/\D/g, '');
 
-      const campo = document.querySelector('#fazenda');
+  const campo = document.querySelector('#fazenda');
 
-      if(!campo) throw new Error('Campo Fazenda não encontrado.');
+  if(!campo) throw new Error('Campo Fazenda não encontrado.');
 
-      await this.selecionarPorTexto(campo, alvo);
+  const inicio = Date.now();
 
-      SOLUM.engine.log('Fazenda selecionada pela IE: ' + alvo, 'ok');
+  while(Date.now() - inicio < 15000){
+    if(campo.options && campo.options.length > 0){
+      break;
+    }
+    await this.esperar(500);
+  }
 
-      await this.esperar(800);
-      return true;
-    },
+  if(!campo.options || campo.options.length === 0){
+    throw new Error('Nenhuma fazenda carregou para o produtor.');
+  }
+
+  let opt = [...campo.options].find(o=>{
+    const txt = this.normalizar(o.textContent);
+    return txt.includes(alvo);
+  });
+
+  if(!opt){
+    SOLUM.engine.log('IE não encontrada na lista. Selecionando primeira fazenda disponível.', 'info');
+    opt = [...campo.options].find(o => !o.disabled && String(o.value || '').trim() !== '');
+  }
+
+  if(!opt){
+    throw new Error('Nenhuma opção válida de fazenda encontrada.');
+  }
+
+  campo.value = opt.value;
+  campo.dispatchEvent(new Event('input', {bubbles:true}));
+  campo.dispatchEvent(new Event('change', {bubbles:true}));
+  campo.dispatchEvent(new Event('blur', {bubbles:true}));
+
+  SOLUM.engine.log('Fazenda selecionada: ' + opt.textContent.trim(), 'ok');
+
+  await this.esperar(1000);
+  return true;
+}
 
     async selecionarModelo55(){
       const campo = document.querySelector('#modeloNFId');
