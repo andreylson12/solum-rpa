@@ -20,11 +20,15 @@
 
       SOLUM.engine.log('✅ Primeira tela concluída.', 'ok');
 
-      await SOLUM.ticket.gerar();
+     await SOLUM.ticket.gerar();
 
-      SOLUM.engine.log('✅ Ticket gerado/confirmado.', 'ok');
+SOLUM.engine.log('✅ Ticket gerado/confirmado.', 'ok');
 
-      return true;
+await SOLUM.notaFiscal.executar();
+
+SOLUM.engine.log('✅ Nota Fiscal concluída.', 'ok');
+
+return true;
     }
   };
 
