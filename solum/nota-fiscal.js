@@ -15,12 +15,17 @@
 
       SOLUM.engine.log('Iniciando Nota Fiscal: NF ' + xml.numero, 'info');
 
-      await this.abrirNovaNotaFiscal();
+     await this.abrirNovaNotaFiscal();
 
-      await this.preencherChave(xml.chave);
+      await SOLUM.select.selecionarProdutor(xml.cpfCnpj);
 
-      await this.consultarChave();
+      await SOLUM.select.selecionarFazendaPorIE(xml.inscricaoEstadual);
 
+      await SOLUM.select.selecionarModelo55();
+
+       await this.preencherChave(xml.chave);
+
+       await this.consultarChave();
       const ok = await this.verificarPreenchimento(xml);
 
       if(!ok){
