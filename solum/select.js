@@ -13,7 +13,7 @@
         .trim();
     },
 
-    async esperar(ms){
+    esperar(ms){
       return new Promise(r => setTimeout(r, ms));
     },
 
@@ -21,15 +21,10 @@
       return !!(el && el.offsetParent !== null);
     },
 
-    async clicarCampo(el){
+    async setValor(el, valor){
       el.scrollIntoView({block:'center'});
       el.focus();
       el.click();
-      await this.esperar(300);
-    },
-
-    async setValor(el, valor){
-      await this.clicarCampo(el);
 
       el.value = '';
       el.dispatchEvent(new Event('input', {bubbles:true}));
@@ -49,9 +44,28 @@
       await this.esperar(800);
     },
 
+    buscarCampoAposLabel(label){
+      const alvo = this.normalizar(label);
+
+      const labels = [...document.querySelectorAll('label, span, div')]
+        .filter(e => this.visivel(e))
+        .filter(e => this.normalizar(e.innerText || e.textContent) === alvo);
+
+      if(!labels.length) return null;
+
+      const labelEl = labels[0];
+
+      const campos = [...document.querySelectorAll('input, select')]
+        .filter(e => this.visivel(e));
+
+      return campos.find(c =>
+        labelEl.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING
+      ) || null;
+    },
+
     opcoesVisiveis(){
       return [...document.querySelectorAll(
-        '.ng-option, .select2-results__option, .dropdown-item, option, li, tr, div'
+        '.ng-option, .dropdown-item, li, option, tr, div'
       )].filter(e => this.visivel(e));
     },
 
@@ -60,9 +74,7 @@
       const inicio = Date.now();
 
       while(Date.now() - inicio < tempo){
-        const opcoes = this.opcoesVisiveis();
-
-        const opcao = opcoes.find(o => {
+        const opcao = this.opcoesVisiveis().find(o=>{
           const txt = this.normalizar(o.innerText || o.textContent || '');
           return txt.includes(alvo) || alvo.includes(txt);
         });
@@ -80,28 +92,24 @@
         ? document.querySelector(campo)
         : campo;
 
-      if(!el){
-        throw new Error('Campo select não encontrado.');
-      }
+      if(!el) throw new Error('Campo select não encontrado.');
 
       if(el.tagName === 'SELECT'){
         const alvo = this.normalizar(texto);
 
-        const opt = [...el.options].find(o => {
+        const opt = [...el.options].find(o=>{
           const txt = this.normalizar(o.textContent);
           return txt.includes(alvo) || alvo.includes(txt);
         });
 
-        if(!opt){
-          throw new Error('Opção não encontrada: ' + texto);
-        }
+        if(!opt) throw new Error('Opção não encontrada: ' + texto);
 
         el.value = opt.value;
         el.dispatchEvent(new Event('input', {bubbles:true}));
         el.dispatchEvent(new Event('change', {bubbles:true}));
         el.dispatchEvent(new Event('blur', {bubbles:true}));
 
-        await this.esperar(500);
+        await this.esperar(700);
         return true;
       }
 
@@ -109,76 +117,57 @@
 
       const opcao = await this.esperarOpcao(texto);
 
-      if(!opcao){
-        throw new Error('Opção não encontrada: ' + texto);
-      }
+      if(!opcao) throw new Error('Opção não encontrada: ' + texto);
 
       opcao.click();
-      await this.esperar(700);
 
+      await this.esperar(1000);
       return true;
     },
 
-   async selecionarProdutor(identificador){
-  const alvo = String(identificador || '').replace(/\D/g, '');
+    async selecionarProdutor(identificador){
+      const alvo = String(identificador || '').replace(/\D/g, '');
 
-  const campo =
-    document.querySelector('#produtor') ||
-    document.querySelector('[formcontrolname="produtor"]') ||
-    [...document.querySelectorAll('input')]
-      .find(i => this.normalizar(i.placeholder).includes('PRODUTOR'));
+      const campo =
+        document.querySelector('#produtor') ||
+        document.querySelector('[formcontrolname="produtor"]') ||
+        this.buscarCampoAposLabel('Produtor');
 
-  if(!campo){
-    throw new Error('Campo Produtor não encontrado.');
-  }
+      if(!campo) throw new Error('Campo Produtor não encontrado.');
 
-  await this.selecionarPorTexto(campo, alvo);
+      await this.selecionarPorTexto(campo, alvo);
 
-  SOLUM.engine.log('Produtor selecionado: ' + alvo, 'ok');
+      SOLUM.engine.log('Produtor selecionado: ' + alvo, 'ok');
 
-  return true;
-
+      await this.esperar(1000);
+      return true;
     },
 
     async selecionarFazendaPorIE(ie){
       const alvo = String(ie || '').replace(/\D/g, '');
 
-      const campo =
-        document.querySelector('#fazenda') ||
-        document.querySelector('[formcontrolname="fazenda"]') ||
-        [...document.querySelectorAll('select,input')]
-          .find(i => this.normalizar(i.placeholder).includes('FAZENDA'));
+      const campo = document.querySelector('#fazenda');
 
-      if(!campo){
-        throw new Error('Campo Fazenda não encontrado.');
-      }
+      if(!campo) throw new Error('Campo Fazenda não encontrado.');
 
-      if(campo.tagName === 'SELECT'){
-        await this.selecionarPorTexto(campo, alvo);
-      }else{
-        await this.selecionarPorTexto(campo, alvo);
-      }
+      await this.selecionarPorTexto(campo, alvo);
 
       SOLUM.engine.log('Fazenda selecionada pela IE: ' + alvo, 'ok');
 
+      await this.esperar(800);
       return true;
     },
 
     async selecionarModelo55(){
-      const campo =
-        document.querySelector('#modelo') ||
-        document.querySelector('[formcontrolname="modelo"]') ||
-        [...document.querySelectorAll('select,input')]
-          .find(i => this.normalizar(i.placeholder).includes('MODELO'));
+      const campo = document.querySelector('#modeloNFId');
 
-      if(!campo){
-        throw new Error('Campo Modelo não encontrado.');
-      }
+      if(!campo) throw new Error('Campo Modelo NF não encontrado.');
 
       await this.selecionarPorTexto(campo, '55');
 
       SOLUM.engine.log('Modelo 55 selecionado.', 'ok');
 
+      await this.esperar(800);
       return true;
     }
 
