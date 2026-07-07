@@ -133,25 +133,22 @@
     },
 
     async salvar(){
-      const botao = await this.esperarBotaoTexto('SALVAR', 10000);
-      if(!botao) throw new Error('Botão Salvar da NF não encontrado.');
+  const botao = await this.esperarBotaoTexto('SALVAR', 10000);
+  if(!botao) throw new Error('Botão Salvar da NF não encontrado.');
 
-      botao.click();
+  botao.scrollIntoView({block:'center'});
 
-      SOLUM.engine.log('Salvar NF clicado.', 'ok');
+  botao.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true}));
+  botao.dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
+  botao.dispatchEvent(new PointerEvent('pointerup', {bubbles:true}));
+  botao.dispatchEvent(new MouseEvent('mouseup', {bubbles:true}));
+  botao.dispatchEvent(new MouseEvent('click', {bubbles:true}));
 
-      await SOLUM.actions.esperar(1000);
-    },
+  SOLUM.engine.log('Salvar NF clicado.', 'ok');
 
-    async tentarConfirmarPesoValor(xml){
-      try{
-        await this.confirmarPesoValor(xml);
-        return true;
-      }catch(e){
-        SOLUM.engine.log(e.message, 'info');
-        return false;
-      }
-    },
+  await SOLUM.actions.esperar(2500);
+}
+     },
 
     async confirmarPesoValor(xml){
       const modal = await this.esperarModalConfirmacaoValores();
