@@ -33,53 +33,63 @@
     campoProdutor(){
       const campos = this.camposVisiveis();
 
-      const porId =
-        document.querySelector('#produtor') ||
-        document.querySelector('[formcontrolname="produtor"]');
+      const campo = campos[17];
 
-      if(porId && this.visivel(porId)) return porId;
-
-      const campoIndice17 = campos[17];
-
-      if(campoIndice17 && campoIndice17.tagName === 'INPUT'){
-        return campoIndice17;
+      if(campo && campo.tagName === 'INPUT'){
+        return campo;
       }
 
       throw new Error('Campo Produtor não encontrado no índice 17.');
     },
 
-    async setValor(el, valor){
+    async digitarComoHumano(el, valor){
       el.scrollIntoView({block:'center'});
-      el.focus();
+
+      el.dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
+      el.dispatchEvent(new MouseEvent('mouseup', {bubbles:true}));
       el.click();
+      el.focus();
 
-      await this.esperar(200);
+      await this.esperar(300);
 
-      el.value = '';
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value'
+      ).set;
+
+      setter.call(el, '');
       el.dispatchEvent(new Event('input', {bubbles:true}));
       el.dispatchEvent(new Event('change', {bubbles:true}));
 
       await this.esperar(200);
 
-      el.value = String(valor || '');
+      const texto = String(valor || '');
 
-      el.dispatchEvent(new InputEvent('input', {
-        bubbles:true,
-        inputType:'insertText',
-        data:String(valor || '')
-      }));
+      for(const letra of texto){
+        setter.call(el, el.value + letra);
 
-      el.dispatchEvent(new KeyboardEvent('keydown', {
-        bubbles:true,
-        key:String(valor || '').slice(-1) || '0'
-      }));
+        el.dispatchEvent(new KeyboardEvent('keydown', {
+          bubbles:true,
+          key:letra
+        }));
 
-      el.dispatchEvent(new KeyboardEvent('keyup', {
-        bubbles:true,
-        key:String(valor || '').slice(-1) || '0'
-      }));
+        el.dispatchEvent(new InputEvent('input', {
+          bubbles:true,
+          inputType:'insertText',
+          data:letra
+        }));
 
-      await this.esperar(1000);
+        el.dispatchEvent(new KeyboardEvent('keyup', {
+          bubbles:true,
+          key:letra
+        }));
+
+        await this.esperar(80);
+      }
+
+      el.dispatchEvent(new Event('change', {bubbles:true}));
+
+      await this.esperar(1500);
     },
 
     opcoesProdutorVisiveis(){
@@ -115,7 +125,12 @@
 
       SOLUM.engine.log('Pesquisando produtor: ' + alvo, 'info');
 
-      await this.setValor(campo, alvo);
+      await this.digitarComoHumano(campo, alvo);
+
+      if(!String(campo.value || '').includes(alvo)){
+        SOLUM.engine.log('CPF/CNPJ não apareceu visualmente no campo. Tentando novamente...', 'info');
+        await this.digitarComoHumano(campo, alvo);
+      }
 
       const opcao = await this.esperarOpcaoProdutor(alvo, 15000);
 
@@ -124,21 +139,14 @@
       }
 
       opcao.scrollIntoView({block:'center'});
+
+      opcao.dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
+      opcao.dispatchEvent(new MouseEvent('mouseup', {bubbles:true}));
       opcao.click();
 
       SOLUM.engine.log('Opção do produtor clicada: ' + alvo, 'ok');
 
-      await this.esperar(1500);
-
-      const fazenda = document.querySelector('#fazenda');
-
-      if(fazenda && fazenda.options && fazenda.options.length > 0){
-        SOLUM.engine.log('Fazendas carregadas após produtor.', 'ok');
-      }else{
-        SOLUM.engine.log('Produtor clicado. Aguardando fazendas...', 'info');
-      }
-
-      await this.esperar(1000);
+      await this.esperar(2500);
 
       return true;
     },
@@ -174,7 +182,7 @@
         return true;
       }
 
-      await this.setValor(el, texto);
+      await this.digitarComoHumano(el, texto);
 
       const opcao = await this.esperarOpcaoProdutor(texto);
 
@@ -199,6 +207,7 @@
         if(campo.options && campo.options.length > 0){
           break;
         }
+
         await this.esperar(500);
       }
 
@@ -227,7 +236,7 @@
 
       SOLUM.engine.log('Fazenda selecionada: ' + opt.textContent.trim(), 'ok');
 
-      await this.esperar(1000);
+      await this.esperar(1200);
       return true;
     },
 
