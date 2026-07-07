@@ -176,40 +176,66 @@
     },
 
     async confirmarPesoValor(xml){
-      const modal = await this.esperarModalPesoValor();
+  const campos = await this.esperarCamposConfirmacaoPesoValor();
 
-      const inputs = [...modal.querySelectorAll('input')]
-        .filter(i => i.offsetParent !== null);
+  const peso =
+    this.formatarPeso(xml.peso || document.querySelector('#pesoNF')?.value);
 
-      if(inputs.length < 2){
-        throw new Error('Campos Peso/Valor da confirmação não encontrados.');
-      }
+  const valor =
+    this.formatarValor(xml.valorTotal || document.querySelector('#valorTotal')?.value);
 
-      const peso = this.formatarPeso(xml.peso);
-      const valor = this.formatarValor(xml.valorTotal);
+  await this.setValor(campos.peso, peso);
+  await this.setValor(campos.valor, valor);
 
-      await this.setValor(inputs[0], peso);
-      await this.setValor(inputs[1], valor);
+  SOLUM.engine.log('Peso da confirmação preenchido: ' + peso, 'ok');
+  SOLUM.engine.log('Valor da confirmação preenchido: ' + valor, 'ok');
 
-      SOLUM.engine.log('Peso confirmado: ' + peso, 'ok');
-      SOLUM.engine.log('Valor confirmado: ' + valor, 'ok');
+  const confirmar = [...document.querySelectorAll('button')]
+    .filter(b => b.offsetParent !== null)
+    .filter(b => !b.closest('#solum-rpa'))
+    .find(b => this.normalizar(b.innerText || b.textContent).includes('CONFIRMAR'));
 
-      const confirmar = [...modal.querySelectorAll('button')]
-        .filter(b => b.offsetParent !== null)
-        .find(b => this.normalizar(b.innerText || b.textContent).includes('CONFIRMAR'));
+  if(!confirmar){
+    throw new Error('Botão Confirmar não encontrado.');
+  }
 
-      if(!confirmar){
-        throw new Error('Botão Confirmar de peso/valor não encontrado.');
-      }
+  confirmar.click();
 
-      confirmar.click();
+  SOLUM.engine.log('Confirmar peso/valor clicado.', 'ok');
 
-      SOLUM.engine.log('Confirmação de peso/valor clicada.', 'ok');
+  await SOLUM.actions.esperar(1500);
 
-      await SOLUM.actions.esperar(1500);
+  return true;
 
-      return true;
     },
+
+    async esperarCamposConfirmacaoPesoValor(tempo=15000){
+  const inicio = Date.now();
+
+  while(Date.now() - inicio < tempo){
+    const inputs = [...document.querySelectorAll('input')]
+      .filter(i => i.offsetParent !== null);
+
+    const peso = inputs.find(i =>
+      String(i.id || '').toLowerCase().includes('confirmacaopeso') ||
+      String(i.id || '').toLowerCase().includes('confirmacaopesonf') ||
+      String(i.placeholder || '').toLowerCase().includes('peso')
+    );
+
+    const valor = inputs.find(i =>
+      String(i.id || '').toLowerCase().includes('confirmacaovalor') ||
+      String(i.placeholder || '').toLowerCase().includes('valor')
+    );
+
+    if(peso && valor){
+      return {peso, valor};
+    }
+
+    await SOLUM.actions.esperar(300);
+  }
+
+  throw new Error('Campos de confirmação Peso/Valor não encontrados.');
+},
 
     async esperarModalPesoValor(tempo=15000){
       const inicio = Date.now();
