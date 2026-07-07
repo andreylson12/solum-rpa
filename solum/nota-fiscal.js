@@ -38,10 +38,8 @@
       SOLUM.engine.log('Consulta da NF finalizada.', 'ok');
 
       await this.salvar();
-
-      await this.confirmarSalvarNota();
-
       await this.confirmarPesoValor(xml);
+      await this.confirmarSalvarNota();
 
       SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
 
