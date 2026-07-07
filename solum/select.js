@@ -25,13 +25,41 @@
       return !!(el && el.offsetParent !== null);
     },
 
+    camposVisiveis(){
+      return [...document.querySelectorAll('input, select')]
+        .filter(e => this.visivel(e));
+    },
+
+    campoProdutor(){
+      const campos = this.camposVisiveis();
+
+      const porId =
+        document.querySelector('#produtor') ||
+        document.querySelector('[formcontrolname="produtor"]');
+
+      if(porId && this.visivel(porId)) return porId;
+
+      const campoIndice17 = campos[17];
+
+      if(campoIndice17 && campoIndice17.tagName === 'INPUT'){
+        return campoIndice17;
+      }
+
+      throw new Error('Campo Produtor não encontrado no índice 17.');
+    },
+
     async setValor(el, valor){
       el.scrollIntoView({block:'center'});
       el.focus();
       el.click();
 
+      await this.esperar(200);
+
       el.value = '';
       el.dispatchEvent(new Event('input', {bubbles:true}));
+      el.dispatchEvent(new Event('change', {bubbles:true}));
+
+      await this.esperar(200);
 
       el.value = String(valor || '');
 
@@ -41,54 +69,36 @@
         data:String(valor || '')
       }));
 
+      el.dispatchEvent(new KeyboardEvent('keydown', {
+        bubbles:true,
+        key:String(valor || '').slice(-1) || '0'
+      }));
+
       el.dispatchEvent(new KeyboardEvent('keyup', {
         bubbles:true,
         key:String(valor || '').slice(-1) || '0'
       }));
 
-      el.dispatchEvent(new Event('change', {bubbles:true}));
-
-      await this.esperar(500);
+      await this.esperar(1000);
     },
 
-    buscarCampoAposLabel(label){
-      const alvo = this.normalizar(label);
-
-      const labels = [...document.querySelectorAll('label, span, div')]
-        .filter(e => this.visivel(e))
-        .filter(e => this.normalizar(e.innerText || e.textContent) === alvo);
-
-      if(!labels.length) return null;
-
-      const labelEl = labels[0];
-
-      const campos = [...document.querySelectorAll('input, select')]
-        .filter(e => this.visivel(e));
-
-      return campos.find(c =>
-        labelEl.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING
-      ) || null;
-    },
-
-    opcoesVisiveis(){
+    opcoesProdutorVisiveis(){
       return [...document.querySelectorAll(
-        '.ng-option, .dropdown-item, li, option, tr, div, span'
+        '.ng-dropdown-panel .ng-option, .ng-option, .dropdown-menu .dropdown-item, .select2-results__option, ul li'
       )].filter(e => this.visivel(e));
     },
 
-    async esperarOpcao(texto, tempo=10000){
-      const alvoNumeros = this.somenteNumeros(texto);
-      const alvoTexto = this.normalizar(texto);
+    async esperarOpcaoProdutor(alvo, tempo=15000){
+      const alvoNumeros = this.somenteNumeros(alvo);
       const inicio = Date.now();
 
       while(Date.now() - inicio < tempo){
-        const opcao = this.opcoesVisiveis().find(o=>{
-          const bruto = o.innerText || o.textContent || '';
-          const txt = this.normalizar(bruto);
-          const nums = this.somenteNumeros(bruto);
+        const opcoes = this.opcoesProdutorVisiveis();
 
-          if(alvoNumeros && nums.includes(alvoNumeros)) return true;
-          return txt.includes(alvoTexto) || alvoTexto.includes(txt);
+        const opcao = opcoes.find(o=>{
+          const txt = o.innerText || o.textContent || '';
+          const nums = this.somenteNumeros(txt);
+          return alvoNumeros && nums.includes(alvoNumeros);
         });
 
         if(opcao) return opcao;
@@ -97,6 +107,40 @@
       }
 
       return null;
+    },
+
+    async selecionarProdutor(identificador){
+      const alvo = this.somenteNumeros(identificador);
+      const campo = this.campoProdutor();
+
+      SOLUM.engine.log('Pesquisando produtor: ' + alvo, 'info');
+
+      await this.setValor(campo, alvo);
+
+      const opcao = await this.esperarOpcaoProdutor(alvo, 15000);
+
+      if(!opcao){
+        throw new Error('Produtor não apareceu na lista: ' + alvo);
+      }
+
+      opcao.scrollIntoView({block:'center'});
+      opcao.click();
+
+      SOLUM.engine.log('Opção do produtor clicada: ' + alvo, 'ok');
+
+      await this.esperar(1500);
+
+      const fazenda = document.querySelector('#fazenda');
+
+      if(fazenda && fazenda.options && fazenda.options.length > 0){
+        SOLUM.engine.log('Fazendas carregadas após produtor.', 'ok');
+      }else{
+        SOLUM.engine.log('Produtor clicado. Aguardando fazendas...', 'info');
+      }
+
+      await this.esperar(1000);
+
+      return true;
     },
 
     async selecionarPorTexto(campo, texto){
@@ -132,74 +176,14 @@
 
       await this.setValor(el, texto);
 
-      const opcao = await this.esperarOpcao(texto);
+      const opcao = await this.esperarOpcaoProdutor(texto);
 
       if(!opcao) throw new Error('Opção não encontrada: ' + texto);
 
-      const clicavel =
-        opcao.closest('button,a,li,tr,.ng-option,.dropdown-item') ||
-        opcao;
-
-      clicavel.click();
+      opcao.click();
 
       await this.esperar(1000);
       return true;
-    },
-
-    async selecionarProdutor(identificador){
-      const alvo = this.somenteNumeros(identificador);
-
-      const campo =
-        document.querySelector('#produtor') ||
-        document.querySelector('[formcontrolname="produtor"]') ||
-        this.buscarCampoAposLabel('Produtor');
-
-      if(!campo) throw new Error('Campo Produtor não encontrado.');
-
-      SOLUM.engine.log('Pesquisando produtor: ' + alvo, 'info');
-
-      await this.setValor(campo, alvo);
-
-      const opcao = await this.esperarOpcao(alvo, 15000);
-
-      if(!opcao){
-        throw new Error('Produtor não apareceu na lista: ' + alvo);
-      }
-
-      const clicavel =
-        opcao.closest('button,a,li,tr,.ng-option,.dropdown-item') ||
-        opcao;
-
-      clicavel.click();
-
-      SOLUM.engine.log('Opção do produtor clicada: ' + alvo, 'ok');
-
-      await this.esperarProdutorPreenchido(campo, alvo);
-
-      SOLUM.engine.log('Produtor selecionado: ' + alvo, 'ok');
-
-      await this.esperar(1200);
-      return true;
-    },
-
-    async esperarProdutorPreenchido(campo, alvo, tempo=15000){
-      const inicio = Date.now();
-
-      while(Date.now() - inicio < tempo){
-        const valor = this.somenteNumeros(campo.value || campo.innerText || campo.textContent || '');
-
-        const fazenda = document.querySelector('#fazenda');
-        const fazendaCarregou = fazenda && fazenda.options && fazenda.options.length > 0;
-
-        if(valor.includes(alvo) || fazendaCarregou){
-          return true;
-        }
-
-        await this.esperar(300);
-      }
-
-      SOLUM.engine.log('Produtor clicado, mas não confirmou preenchimento visual.', 'info');
-      return false;
     },
 
     async selecionarFazendaPorIE(ie){
@@ -223,8 +207,8 @@
       }
 
       let opt = [...campo.options].find(o=>{
-        const txt = this.somenteNumeros(o.textContent);
-        return alvo && txt.includes(alvo);
+        const nums = this.somenteNumeros(o.textContent);
+        return alvo && nums.includes(alvo);
       });
 
       if(!opt){
