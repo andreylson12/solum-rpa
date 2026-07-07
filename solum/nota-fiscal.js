@@ -266,7 +266,7 @@
       }, tempo);
     },
 
-  async cliqueReal(el){
+async cliqueReal(el){
   el.scrollIntoView({block:'center'});
   await SOLUM.actions.esperar(200);
 
