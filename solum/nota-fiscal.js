@@ -37,13 +37,13 @@
 
       SOLUM.engine.log('Consulta da NF finalizada.', 'ok');
 
-      await this.salvar();
-      await this.confirmarPesoValor(xml);
-      await this.confirmarSalvarNota();
+    await this.salvar();
 
-      SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
+await this.confirmarPesoValor(xml);
 
-      return true;
+await this.confirmarSalvarNota();
+
+SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
     },
 
     obterBPProdutor(planilha){
@@ -159,19 +159,36 @@
       await SOLUM.actions.esperar(1000);
     },
 
-    async confirmarSalvarNota(){
-      const sim = await this.esperarBotaoTexto('SIM', 10000);
+   async confirmarSalvarNota(){
+  const inicio = Date.now();
 
-      if(!sim){
-        throw new Error('Botão SIM da confirmação da NF não encontrado.');
-      }
+  while(Date.now() - inicio < 15000){
+    const botoes = [...document.querySelectorAll('button, a, span, div')]
+      .filter(e => e.offsetParent !== null)
+      .filter(e => !e.closest('#solum-rpa'));
 
-      sim.click();
+    const sim = botoes.find(e => {
+      const txt = this.normalizar(e.innerText || e.textContent || '');
+      return txt === 'SIM';
+    });
 
-      SOLUM.engine.log('Confirmação SIM clicada.', 'ok');
+    if(sim){
+      const clicavel = sim.closest('button,a') || sim;
 
-      await SOLUM.actions.esperar(1000);
-    },
+      clicavel.click();
+
+      SOLUM.engine.log('Confirmação final SIM clicada.', 'ok');
+
+      await SOLUM.actions.esperar(1500);
+      return true;
+    }
+
+    await SOLUM.actions.esperar(300);
+  }
+
+  SOLUM.engine.log('Confirmação final SIM não apareceu.', 'info');
+  return false;
+},
 
     async confirmarPesoValor(xml){
   const campos = await this.esperarCamposConfirmacaoPesoValor();
@@ -317,19 +334,16 @@
     },
 
     formatarPeso(peso){
-      let p = String(peso || '').trim();
+  let p = String(peso || '').trim();
 
-      if(!p) return '';
+  if(!p) return '';
 
-      p = p.replace(',', '.');
+  // mantém exatamente o separador do XML
+  // exemplo: 47.360 continua 47.360
+  p = p.replace(/[^\d.,]/g, '');
 
-      const n = Number(p);
+  return p;
 
-      if(!isNaN(n)){
-        return String(n).replace('.', ',');
-      }
-
-      return p;
     },
 
     formatarValor(valor){
