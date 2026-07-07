@@ -4,37 +4,51 @@
 
   const NotaFiscal = {
 
-    async executar(){
-      const xml = SOLUM.context?.dados?.xml || SOLUM.engine.estado.dados.xml || {};
-      const planilha = SOLUM.context?.dados?.planilha || SOLUM.engine.estado.dados.planilha || {};
+    executando:false,
 
-      if(!xml.chave){
-        alert('XML da nota fiscal não foi lido.');
-        SOLUM.engine.log('XML da NF não encontrado.', 'erro');
+    async executar(){
+      if(this.executando){
+        SOLUM.engine.log('Nota Fiscal já está em execução. Aguarde finalizar.', 'info');
         return false;
       }
 
-      const bpProdutor = this.obterBPProdutor(planilha);
-      if(!bpProdutor) throw new Error('BP do produtor não encontrado na planilha.');
+      this.executando = true;
 
-      SOLUM.engine.log('Iniciando Nota Fiscal: NF ' + xml.numero, 'info');
-      SOLUM.engine.log('Produtor pelo BP: ' + bpProdutor, 'info');
+      try{
+        const xml = SOLUM.context?.dados?.xml || SOLUM.engine.estado.dados.xml || {};
+        const planilha = SOLUM.context?.dados?.planilha || SOLUM.engine.estado.dados.planilha || {};
 
-      await this.abrirNovaNotaFiscal();
-      await SOLUM.select.selecionarProdutor(bpProdutor);
-      await SOLUM.select.selecionarFazendaPorIE(xml.inscricaoEstadual);
-      await SOLUM.select.selecionarModelo55();
+        if(!xml.chave){
+          alert('XML da nota fiscal não foi lido.');
+          SOLUM.engine.log('XML da NF não encontrado.', 'erro');
+          return false;
+        }
 
-      await this.preencherChave(xml.chave);
-      await this.consultarChave();
-      await this.esperarNotaCarregada();
+        const bpProdutor = this.obterBPProdutor(planilha);
+        if(!bpProdutor) throw new Error('BP do produtor não encontrado na planilha.');
 
-      await this.salvar();
-      await this.confirmarPesoValor(xml);
-      await this.confirmarSalvarNota();
+        SOLUM.engine.log('Iniciando Nota Fiscal: NF ' + xml.numero, 'info');
+        SOLUM.engine.log('Produtor pelo BP: ' + bpProdutor, 'info');
 
-      SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
-      return true;
+        await this.abrirNovaNotaFiscal();
+        await SOLUM.select.selecionarProdutor(bpProdutor);
+        await SOLUM.select.selecionarFazendaPorIE(xml.inscricaoEstadual);
+        await SOLUM.select.selecionarModelo55();
+
+        await this.preencherChave(xml.chave);
+        await this.consultarChave();
+        await this.esperarNotaCarregada();
+
+        await this.salvar();
+        await this.confirmarPesoValor(xml);
+        await this.confirmarSalvarNota();
+
+        SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
+        return true;
+
+      }finally{
+        this.executando = false;
+      }
     },
 
     obterBPProdutor(planilha){
@@ -120,14 +134,14 @@
           emissao &&
           cfop
         );
-      }, 20000);
+      }, 25000);
 
       if(!ok){
         throw new Error('NF não carregou todos os dados após consulta da chave.');
       }
 
       SOLUM.engine.log('Dados da NF carregados.', 'ok');
-      await SOLUM.actions.esperar(800);
+      await SOLUM.actions.esperar(1000);
     },
 
     async salvar(){
@@ -137,7 +151,7 @@
       await this.cliqueReal(botao);
       SOLUM.engine.log('Salvar NF clicado.', 'ok');
 
-      const abriu = await this.esperar(() => this.modalConfirmacaoValores(), 10000);
+      const abriu = await this.esperar(() => this.modalConfirmacaoValores(), 12000);
 
       if(!abriu){
         throw new Error('Após salvar, a Confirmação de Valores não abriu.');
@@ -185,17 +199,15 @@
     },
 
     modalConfirmacaoValores(){
-      const modais = [...document.querySelectorAll('div')]
+      return [...document.querySelectorAll('div')]
         .filter(d => d.offsetParent !== null)
-        .filter(d => {
+        .find(d => {
           const txt = this.normalizar(d.innerText || d.textContent || '');
           return txt.includes('CONFIRMACAO DE VALORES') &&
                  txt.includes('PESO') &&
                  txt.includes('VALOR') &&
                  txt.includes('CONFIRMAR');
-        });
-
-      return modais[0] || null;
+        }) || null;
     },
 
     async confirmarSalvarNota(){
@@ -206,9 +218,7 @@
           .find(e => this.normalizar(e.innerText || e.textContent || '') === 'SIM');
       }, 15000);
 
-      if(!sim){
-        throw new Error('Botão SIM final não apareceu.');
-      }
+      if(!sim) throw new Error('Botão SIM final não apareceu.');
 
       await this.cliqueReal(sim.closest('button,a') || sim);
       SOLUM.engine.log('Confirmação final SIM clicada.', 'ok');
@@ -229,15 +239,11 @@
     },
 
     limparPeso(peso){
-      return String(peso || '')
-        .replace(/[^\d.,]/g, '')
-        .trim();
+      return String(peso || '').replace(/[^\d.,]/g, '').trim();
     },
 
     limparValor(valor){
-      let v = String(valor || '')
-        .replace(/[^\d.,]/g, '')
-        .trim();
+      let v = String(valor || '').replace(/[^\d.,]/g, '').trim();
 
       if(!v) return '';
       if(v.includes(',') && v.includes('.')) return v;
@@ -266,24 +272,25 @@
       }, tempo);
     },
 
-async cliqueReal(el){
-  el.scrollIntoView({block:'center'});
-  await SOLUM.actions.esperar(200);
+    async cliqueReal(el){
+      el.scrollIntoView({block:'center'});
+      await SOLUM.actions.esperar(200);
 
-  const r = el.getBoundingClientRect();
-  const x = r.left + r.width / 2;
-  const y = r.top + r.height / 2;
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
 
-  const alvo = document.elementFromPoint(x, y) || el;
+      const alvo = document.elementFromPoint(x, y) || el;
 
-  alvo.dispatchEvent(new MouseEvent('mouseover', {bubbles:true, clientX:x, clientY:y}));
-  alvo.dispatchEvent(new MouseEvent('mousemove', {bubbles:true, clientX:x, clientY:y}));
-  alvo.dispatchEvent(new MouseEvent('mousedown', {bubbles:true, cancelable:true, clientX:x, clientY:y}));
-  alvo.dispatchEvent(new MouseEvent('mouseup', {bubbles:true, cancelable:true, clientX:x, clientY:y}));
-  alvo.click();
+      alvo.dispatchEvent(new MouseEvent('mouseover', {bubbles:true, clientX:x, clientY:y}));
+      alvo.dispatchEvent(new MouseEvent('mousemove', {bubbles:true, clientX:x, clientY:y}));
+      alvo.dispatchEvent(new MouseEvent('mousedown', {bubbles:true, cancelable:true, clientX:x, clientY:y}));
+      alvo.dispatchEvent(new MouseEvent('mouseup', {bubbles:true, cancelable:true, clientX:x, clientY:y}));
+      alvo.click();
 
-  await SOLUM.actions.esperar(700);
-},
+      await SOLUM.actions.esperar(700);
+    },
+
     async setValor(campo, valor){
       campo.scrollIntoView({block:'center'});
       campo.focus();
