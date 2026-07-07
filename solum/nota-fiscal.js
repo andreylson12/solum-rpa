@@ -9,7 +9,7 @@
 
     async executar(){
       if(this.executando){
-        SOLUM.engine.log('Nota Fiscal já está em execução. Aguarde finalizar.', 'info');
+        SOLUM.engine?.log?.('Nota Fiscal já está em execução. Aguarde finalizar.', 'info');
         return false;
       }
 
@@ -28,7 +28,7 @@
 
         if(!xml.chave){
           alert('XML da nota fiscal não foi lido.');
-          SOLUM.engine.log('XML da NF não encontrado.', 'erro');
+          SOLUM.engine?.log?.('XML da NF não encontrado.', 'erro');
           return false;
         }
 
@@ -42,53 +42,49 @@
           xml.inscricao ||
           '';
 
-        SOLUM.engine.log('Iniciando Nota Fiscal: NF ' + (xml.numero || xml.nf || ''), 'info');
-        SOLUM.engine.log('Produtor pelo BP: ' + bpProdutor, 'info');
-        SOLUM.engine.log('IE produtor usada: ' + ieProdutor, 'info');
+        SOLUM.engine?.log?.('Iniciando Nota Fiscal: NF ' + (xml.numero || xml.nf || ''), 'info');
+        SOLUM.engine?.log?.('Produtor pelo BP: ' + bpProdutor, 'info');
+        SOLUM.engine?.log?.('IE produtor usada: ' + ieProdutor, 'info');
 
         await this.abrirNovaNotaFiscal();
-
-        if(!SOLUM.select?.selecionarProdutor){
-          throw new Error('Função SOLUM.select.selecionarProdutor não encontrada.');
-        }
-
-        if(!SOLUM.select?.selecionarFazendaPorIE){
-          throw new Error('Função SOLUM.select.selecionarFazendaPorIE não encontrada.');
-        }
-
-        if(!SOLUM.select?.selecionarModelo55){
-          throw new Error('Função SOLUM.select.selecionarModelo55 não encontrada.');
-        }
+        await this.validarDependencias();
 
         await SOLUM.select.selecionarProdutor(bpProdutor);
 
         if(ieProdutor){
           await SOLUM.select.selecionarFazendaPorIE(ieProdutor);
         }else{
-          SOLUM.engine.log('IE do produtor não encontrada no XML. Pulando seleção por IE.', 'erro');
+          SOLUM.engine?.log?.('IE do produtor não encontrada no XML.', 'erro');
         }
 
         await SOLUM.select.selecionarModelo55();
 
         await this.preencherChave(xml.chave);
-        await this.consultarChave();
+        await this.consultarChaveComDuploClique();
         await this.esperarNotaCarregada();
 
         await this.salvar();
         await this.confirmarPesoValor(xml);
         await this.confirmarSalvarNota();
 
-        SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
+        SOLUM.engine?.log?.('Nota Fiscal salva e confirmada.', 'ok');
         return true;
 
       }catch(e){
-        SOLUM.engine.log('Erro na Nota Fiscal: ' + e.message, 'erro');
+        SOLUM.engine?.log?.('Erro na Nota Fiscal: ' + e.message, 'erro');
         console.error('Erro Nota Fiscal:', e);
         throw e;
 
       }finally{
         this.executando = false;
       }
+    },
+
+    async validarDependencias(){
+      if(!SOLUM.actions?.esperar) throw new Error('Função SOLUM.actions.esperar não encontrada.');
+      if(!SOLUM.select?.selecionarProdutor) throw new Error('Função SOLUM.select.selecionarProdutor não encontrada.');
+      if(!SOLUM.select?.selecionarFazendaPorIE) throw new Error('Função SOLUM.select.selecionarFazendaPorIE não encontrada.');
+      if(!SOLUM.select?.selecionarModelo55) throw new Error('Função SOLUM.select.selecionarModelo55 não encontrada.');
     },
 
     obterBPProdutor(planilha){
@@ -103,7 +99,7 @@
 
     async abrirNovaNotaFiscal(){
       if(this.telaNFAberta()){
-        SOLUM.engine.log('Tela Nova Nota Fiscal já está aberta.', 'ok');
+        SOLUM.engine?.log?.('Tela Nova Nota Fiscal já está aberta.', 'ok');
         return true;
       }
 
@@ -118,12 +114,12 @@
       if(!botao) throw new Error('Botão Nova Nota Fiscal não encontrado.');
 
       await this.cliqueReal(botao.closest('button,a') || botao);
-      SOLUM.engine.log('Clique em Nova Nota Fiscal.', 'ok');
+      SOLUM.engine?.log?.('Clique em Nova Nota Fiscal.', 'ok');
 
       const ok = await this.esperar(() => this.telaNFAberta(), 15000);
       if(!ok) throw new Error('Tela Nova Nota Fiscal não abriu.');
 
-      SOLUM.engine.log('Nova Nota Fiscal aberta.', 'ok');
+      SOLUM.engine?.log?.('Nova Nota Fiscal aberta.', 'ok');
       return true;
     },
 
@@ -140,24 +136,51 @@
       if(!campo) throw new Error('Campo Chave da NF não encontrado.');
 
       await this.setValor(campo, chave);
-      SOLUM.engine.log('Chave preenchida: ' + chave, 'ok');
+      SOLUM.engine?.log?.('Chave preenchida: ' + chave, 'ok');
     },
 
-    async consultarChave(){
+    async consultarChaveComDuploClique(){
       const campo = document.querySelector('#chave');
       if(!campo) throw new Error('Campo Chave não encontrado.');
 
-      const container = campo.closest('div') || campo.parentElement;
+      const container =
+        campo.closest('.input-group') ||
+        campo.closest('div') ||
+        campo.parentElement;
 
-      const lupa =
+      let lupa =
         container?.querySelector('button') ||
         container?.querySelector('i')?.closest('button') ||
         container?.querySelector('button, i, span, a');
 
+      if(!lupa){
+        lupa = [...document.querySelectorAll('button, a, i, span')]
+          .filter(e => e.offsetParent !== null)
+          .find(e => {
+            const txt = this.normalizar(e.innerText || e.textContent || '');
+            const title = this.normalizar(e.getAttribute?.('title') || '');
+            const cls = String(e.className || '').toLowerCase();
+
+            return (
+              txt.includes('CONSULTAR') ||
+              title.includes('CONSULTAR') ||
+              title.includes('PESQUISAR') ||
+              cls.includes('search') ||
+              cls.includes('lupa') ||
+              cls.includes('fa-search')
+            );
+          });
+      }
+
       if(!lupa) throw new Error('Lupa da chave não encontrada.');
 
-      await this.cliqueReal(lupa.closest('button,a') || lupa);
-      SOLUM.engine.log('Lupa da chave clicada.', 'ok');
+      const alvo = lupa.closest('button,a') || lupa;
+
+      await this.duploCliqueReal(alvo);
+
+      SOLUM.engine?.log?.('Duplo clique na lupa da chave realizado.', 'ok');
+
+      await SOLUM.actions.esperar(1500);
     },
 
     async esperarNotaCarregada(){
@@ -168,6 +191,7 @@
         const valor = document.querySelector('#valorTotal')?.value?.trim();
 
         const carregouBasico = !!(serie && numero);
+
         const carregouPesoValor = !!(
           peso &&
           valor &&
@@ -176,41 +200,45 @@
         );
 
         return carregouBasico && carregouPesoValor;
-      }, 35000);
+      }, 45000);
 
-      const dadosDebug = {
+      const dadosDebug = this.obterDebugNF();
+      SOLUM.engine?.log?.('Debug NF carregada: ' + JSON.stringify(dadosDebug), 'info');
+
+      if(!ok){
+        throw new Error('NF não carregou peso/valor após duplo clique na lupa. Ver debug no log.');
+      }
+
+      SOLUM.engine?.log?.('Dados principais da NF carregados.', 'ok');
+      await SOLUM.actions.esperar(1000);
+    },
+
+    obterDebugNF(){
+      return {
         serie: document.querySelector('#serie')?.value || '',
         numeroNF: document.querySelector('#numeroNF')?.value || '',
         pesoNF: document.querySelector('#pesoNF')?.value || '',
         valorTotal: document.querySelector('#valorTotal')?.value || '',
         emissao: document.querySelector('#emissao')?.value || '',
-        cfopId: document.querySelector('#cfopId')?.value || ''
+        cfopId: document.querySelector('#cfopId')?.value || '',
+        chave: document.querySelector('#chave')?.value || ''
       };
-
-      SOLUM.engine.log('Debug NF carregada: ' + JSON.stringify(dadosDebug), 'info');
-
-      if(!ok){
-        throw new Error('NF não carregou peso/valor após consulta da chave. Ver debug no log.');
-      }
-
-      SOLUM.engine.log('Dados principais da NF carregados.', 'ok');
-      await SOLUM.actions.esperar(1000);
     },
 
     async salvar(){
-      const botao = await this.esperarBotaoTexto('SALVAR', 10000);
+      const botao = await this.esperarBotaoTexto('SALVAR', 12000);
       if(!botao) throw new Error('Botão Salvar da NF não encontrado.');
 
       await this.cliqueReal(botao);
-      SOLUM.engine.log('Salvar NF clicado.', 'ok');
+      SOLUM.engine?.log?.('Salvar NF clicado.', 'ok');
 
-      const abriu = await this.esperar(() => this.modalConfirmacaoValores(), 12000);
+      const abriu = await this.esperar(() => this.modalConfirmacaoValores(), 15000);
 
       if(!abriu){
         throw new Error('Após salvar, a Confirmação de Valores não abriu.');
       }
 
-      SOLUM.engine.log('Confirmação de valores aberta.', 'ok');
+      SOLUM.engine?.log?.('Confirmação de valores aberta.', 'ok');
     },
 
     async confirmarPesoValor(xml){
@@ -236,8 +264,8 @@
       await this.setValor(campoPeso, peso);
       await this.setValor(campoValor, valor);
 
-      SOLUM.engine.log('Peso do modal preenchido: ' + campoPeso.value, 'ok');
-      SOLUM.engine.log('Valor do modal preenchido: ' + campoValor.value, 'ok');
+      SOLUM.engine?.log?.('Peso do modal preenchido: ' + campoPeso.value, 'ok');
+      SOLUM.engine?.log?.('Valor do modal preenchido: ' + campoValor.value, 'ok');
 
       const confirmar = [...modal.querySelectorAll('button, a, span, div')]
         .filter(b => b.offsetParent !== null)
@@ -246,7 +274,7 @@
       if(!confirmar) throw new Error('Botão Confirmar do modal não encontrado.');
 
       await this.cliqueReal(confirmar.closest('button,a') || confirmar);
-      SOLUM.engine.log('Confirmar peso/valor clicado.', 'ok');
+      SOLUM.engine?.log?.('Confirmar peso/valor clicado.', 'ok');
 
       await SOLUM.actions.esperar(1000);
     },
@@ -274,7 +302,7 @@
       if(!sim) throw new Error('Botão SIM final não apareceu.');
 
       await this.cliqueReal(sim.closest('button,a') || sim);
-      SOLUM.engine.log('Confirmação final SIM clicada.', 'ok');
+      SOLUM.engine?.log?.('Confirmação final SIM clicada.', 'ok');
 
       await SOLUM.actions.esperar(1500);
     },
@@ -294,7 +322,10 @@
 
     obterValorCorreto(xml){
       const valorTela = String(document.querySelector('#valorTotal')?.value || '').trim();
-      if(valorTela && valorTela !== 'R$ 0,00') return this.limparValor(valorTela);
+
+      if(valorTela && valorTela !== 'R$ 0,00'){
+        return this.limparValor(valorTela);
+      }
 
       return this.limparValor(
         xml.valorTotal ||
@@ -342,6 +373,27 @@
 
         return el ? (el.closest('button,a') || el) : null;
       }, tempo);
+    },
+
+    async duploCliqueReal(el){
+      if(!el) throw new Error('Elemento para duplo clique não informado.');
+
+      await this.cliqueReal(el);
+      await SOLUM.actions.esperar(220);
+      await this.cliqueReal(el);
+
+      try{
+        const r = el.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+
+        el.dispatchEvent(new MouseEvent('dblclick', {
+          bubbles:true,
+          cancelable:true,
+          clientX:x,
+          clientY:y
+        }));
+      }catch(e){}
     },
 
     async cliqueReal(el){
@@ -444,5 +496,5 @@
 
   SOLUM.notaFiscal = NotaFiscal;
 
-  SOLUM.engine?.log?.('Módulo Nota Fiscal atualizado com debug de carregamento.', 'ok');
+  SOLUM.engine?.log?.('Módulo Nota Fiscal atualizado: produtor, fazenda, modelo, chave, duplo clique na lupa, salvar, peso e valor.', 'ok');
 })();
