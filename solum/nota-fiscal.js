@@ -15,37 +15,25 @@
       }
 
       const bpProdutor = this.obterBPProdutor(planilha);
-
-      if(!bpProdutor){
-        throw new Error('BP do produtor não encontrado na planilha.');
-      }
+      if(!bpProdutor) throw new Error('BP do produtor não encontrado na planilha.');
 
       SOLUM.engine.log('Iniciando Nota Fiscal: NF ' + xml.numero, 'info');
       SOLUM.engine.log('Produtor pelo BP: ' + bpProdutor, 'info');
 
       await this.abrirNovaNotaFiscal();
-
       await SOLUM.select.selecionarProdutor(bpProdutor);
       await SOLUM.select.selecionarFazendaPorIE(xml.inscricaoEstadual);
       await SOLUM.select.selecionarModelo55();
 
       await this.preencherChave(xml.chave);
       await this.consultarChave();
-
-      SOLUM.engine.log('Consulta da NF finalizada.', 'ok');
+      await this.esperarNotaCarregada();
 
       await this.salvar();
-
-      const abriuPesoValor = await this.tentarConfirmarPesoValor(xml);
-
-      if(!abriuPesoValor){
-        SOLUM.engine.log('Modal de peso/valor não abriu. Indo para confirmação final.', 'info');
-      }
-
+      await this.confirmarPesoValor(xml);
       await this.confirmarSalvarNota();
 
       SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
-
       return true;
     },
 
@@ -69,19 +57,15 @@
         .filter(b => !b.closest('#solum-rpa'))
         .find(b => this.normalizar(b.innerText || b.textContent) === 'NOVA NOTA FISCAL');
 
-      if(!botao){
-        throw new Error('Botão Nova Nota Fiscal não encontrado.');
-      }
+      if(!botao) throw new Error('Botão Nova Nota Fiscal não encontrado.');
 
-      botao.scrollIntoView({block:'center'});
-      botao.click();
-
+      await this.cliqueReal(botao);
       SOLUM.engine.log('Clique em Nova Nota Fiscal.', 'ok');
 
-      await this.esperarTelaNF();
+      const ok = await this.esperar(() => this.telaNFAberta(), 15000);
+      if(!ok) throw new Error('Tela Nova Nota Fiscal não abriu.');
 
       SOLUM.engine.log('Nova Nota Fiscal aberta.', 'ok');
-
       return true;
     },
 
@@ -91,17 +75,6 @@
         document.querySelector('#modeloNFId') &&
         document.querySelector('#chave')
       );
-    },
-
-    async esperarTelaNF(tempo=15000){
-      const inicio = Date.now();
-
-      while(Date.now() - inicio < tempo){
-        if(this.telaNFAberta()) return true;
-        await SOLUM.actions.esperar(300);
-      }
-
-      throw new Error('Tela Nova Nota Fiscal não abriu.');
     },
 
     async preencherChave(chave){
@@ -125,33 +98,57 @@
 
       if(!lupa) throw new Error('Lupa da chave não encontrada.');
 
-      lupa.click();
-
+      await this.cliqueReal(lupa);
       SOLUM.engine.log('Lupa da chave clicada.', 'ok');
+    },
 
-      await SOLUM.actions.esperar(3000);
+    async esperarNotaCarregada(){
+      const ok = await this.esperar(() => {
+        const serie = document.querySelector('#serie')?.value;
+        const numero = document.querySelector('#numeroNF')?.value;
+        const peso = document.querySelector('#pesoNF')?.value;
+        const valor = document.querySelector('#valorTotal')?.value;
+        const emissao = document.querySelector('#emissao')?.value;
+        const cfop = document.querySelector('#cfopId')?.value;
+
+        return !!(
+          serie &&
+          numero &&
+          peso &&
+          valor &&
+          valor !== 'R$ 0,00' &&
+          emissao &&
+          cfop
+        );
+      }, 20000);
+
+      if(!ok){
+        throw new Error('NF não carregou todos os dados após consulta da chave.');
+      }
+
+      SOLUM.engine.log('Dados da NF carregados.', 'ok');
+      await SOLUM.actions.esperar(800);
     },
 
     async salvar(){
-  const botao = await this.esperarBotaoTexto('SALVAR', 10000);
-  if(!botao) throw new Error('Botão Salvar da NF não encontrado.');
+      const botao = await this.esperarBotaoTexto('SALVAR', 10000);
+      if(!botao) throw new Error('Botão Salvar da NF não encontrado.');
 
-  botao.scrollIntoView({block:'center'});
+      await this.cliqueReal(botao);
+      SOLUM.engine.log('Salvar NF clicado.', 'ok');
 
-  botao.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true}));
-  botao.dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
-  botao.dispatchEvent(new PointerEvent('pointerup', {bubbles:true}));
-  botao.dispatchEvent(new MouseEvent('mouseup', {bubbles:true}));
-  botao.dispatchEvent(new MouseEvent('click', {bubbles:true}));
+      const abriu = await this.esperar(() => this.modalConfirmacaoValores(), 10000);
 
-  SOLUM.engine.log('Salvar NF clicado.', 'ok');
+      if(!abriu){
+        throw new Error('Após salvar, a Confirmação de Valores não abriu.');
+      }
 
-  await SOLUM.actions.esperar(2500);
-
-     },
+      SOLUM.engine.log('Confirmação de valores aberta.', 'ok');
+    },
 
     async confirmarPesoValor(xml){
-      const modal = await this.esperarModalConfirmacaoValores();
+      const modal = this.modalConfirmacaoValores();
+      if(!modal) throw new Error('Modal de Confirmação de Valores não encontrado.');
 
       const inputs = [...modal.querySelectorAll('input')]
         .filter(i => i.offsetParent !== null);
@@ -166,8 +163,8 @@
       const peso = this.obterPesoCorreto(xml);
       const valor = this.obterValorCorreto(xml);
 
-      if(!peso) throw new Error('Peso da NF não encontrado para confirmação.');
-      if(!valor) throw new Error('Valor da NF não encontrado para confirmação.');
+      if(!peso) throw new Error('Peso da NF não encontrado.');
+      if(!valor) throw new Error('Valor da NF não encontrado.');
 
       await this.setValor(campoPeso, peso);
       await this.setValor(campoValor, valor);
@@ -179,62 +176,55 @@
         .filter(b => b.offsetParent !== null)
         .find(b => this.normalizar(b.innerText || b.textContent).includes('CONFIRMAR'));
 
-      if(!confirmar){
-        throw new Error('Botão Confirmar do modal não encontrado.');
-      }
+      if(!confirmar) throw new Error('Botão Confirmar do modal não encontrado.');
 
-      confirmar.click();
-
+      await this.cliqueReal(confirmar);
       SOLUM.engine.log('Confirmar peso/valor clicado.', 'ok');
 
-      await SOLUM.actions.esperar(1500);
-
-      return true;
+      await SOLUM.actions.esperar(1000);
     },
 
-    async esperarModalConfirmacaoValores(tempo=15000){
-      const inicio = Date.now();
+    modalConfirmacaoValores(){
+      const modais = [...document.querySelectorAll('div')]
+        .filter(d => d.offsetParent !== null)
+        .filter(d => {
+          const txt = this.normalizar(d.innerText || d.textContent || '');
+          return txt.includes('CONFIRMACAO DE VALORES') &&
+                 txt.includes('PESO') &&
+                 txt.includes('VALOR') &&
+                 txt.includes('CONFIRMAR');
+        });
 
-      while(Date.now() - inicio < tempo){
-        const modais = [...document.querySelectorAll('div')]
-          .filter(d => d.offsetParent !== null)
-          .filter(d => {
-            const txt = this.normalizar(d.innerText || d.textContent || '');
-            return txt.includes('CONFIRMACAO DE VALORES') &&
-                   txt.includes('PESO') &&
-                   txt.includes('VALOR') &&
-                   txt.includes('CONFIRMAR');
-          });
+      return modais[0] || null;
+    },
 
-        if(modais.length){
-          return modais[0];
-        }
+    async confirmarSalvarNota(){
+      const sim = await this.esperarElemento(() => {
+        return [...document.querySelectorAll('button, a, span, div')]
+          .filter(e => e.offsetParent !== null)
+          .filter(e => !e.closest('#solum-rpa'))
+          .find(e => this.normalizar(e.innerText || e.textContent || '') === 'SIM');
+      }, 15000);
 
-        await SOLUM.actions.esperar(300);
+      if(!sim){
+        throw new Error('Botão SIM final não apareceu.');
       }
 
-      throw new Error('Modal de Confirmação de Valores não apareceu.');
+      await this.cliqueReal(sim.closest('button,a') || sim);
+      SOLUM.engine.log('Confirmação final SIM clicada.', 'ok');
+
+      await SOLUM.actions.esperar(1500);
     },
 
     obterPesoCorreto(xml){
-      const campoTela = document.querySelector('#pesoNF');
-      const pesoTela = String(campoTela?.value || '').trim();
-
-      if(pesoTela){
-        return this.limparPeso(pesoTela);
-      }
-
+      const pesoTela = String(document.querySelector('#pesoNF')?.value || '').trim();
+      if(pesoTela) return this.limparPeso(pesoTela);
       return this.limparPeso(xml.peso);
     },
 
     obterValorCorreto(xml){
-      const campoTela = document.querySelector('#valorTotal');
-      const valorTela = String(campoTela?.value || '').trim();
-
-      if(valorTela && valorTela !== 'R$ 0,00'){
-        return this.limparValor(valorTela);
-      }
-
+      const valorTela = String(document.querySelector('#valorTotal')?.value || '').trim();
+      if(valorTela && valorTela !== 'R$ 0,00') return this.limparValor(valorTela);
       return this.limparValor(xml.valorTotal);
     },
 
@@ -251,57 +241,21 @@
 
       if(!v) return '';
 
-      if(v.includes(',') && v.includes('.')){
-        return v;
-      }
+      if(v.includes(',') && v.includes('.')) return v;
 
       if(v.includes('.') && !v.includes(',')){
         const n = Number(v);
-        if(!isNaN(n)){
-          return n.toFixed(2).replace('.', ',');
-        }
+        if(!isNaN(n)) return n.toFixed(2).replace('.', ',');
       }
 
       return v;
     },
 
-    async confirmarSalvarNota(){
-      const inicio = Date.now();
-
-      while(Date.now() - inicio < 15000){
-        const botoes = [...document.querySelectorAll('button, a, span, div')]
-          .filter(e => e.offsetParent !== null)
-          .filter(e => !e.closest('#solum-rpa'));
-
-        const sim = botoes.find(e => {
-          const txt = this.normalizar(e.innerText || e.textContent || '');
-          return txt === 'SIM';
-        });
-
-        if(sim){
-          const clicavel = sim.closest('button,a') || sim;
-
-          clicavel.click();
-
-          SOLUM.engine.log('Confirmação final SIM clicada.', 'ok');
-
-          await SOLUM.actions.esperar(1500);
-          return true;
-        }
-
-        await SOLUM.actions.esperar(300);
-      }
-
-      SOLUM.engine.log('Confirmação final SIM não apareceu.', 'info');
-      return false;
-    },
-
     async esperarBotaoTexto(texto, tempo=10000){
-      const alvo = this.normalizar(texto);
-      const inicio = Date.now();
+      return await this.esperarElemento(() => {
+        const alvo = this.normalizar(texto);
 
-      while(Date.now() - inicio < tempo){
-        const botao = [...document.querySelectorAll('button, a, span, div')]
+        const el = [...document.querySelectorAll('button, a, span, div')]
           .filter(b => b.offsetParent !== null)
           .filter(b => !b.closest('#solum-rpa'))
           .find(b => {
@@ -309,14 +263,59 @@
             return t === alvo || t.includes(alvo);
           });
 
-        if(botao){
-          return botao.closest('button,a') || botao;
-        }
+        return el ? (el.closest('button,a') || el) : null;
+      }, tempo);
+    },
 
-        await SOLUM.actions.esperar(300);
-      }
+    async cliqueReal(el){
+      el.scrollIntoView({block:'center'});
+      el.focus?.();
 
-      return null;
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+
+      el.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles:true,
+        cancelable:true,
+        view:window,
+        clientX:x,
+        clientY:y
+      }));
+
+      el.dispatchEvent(new MouseEvent('mousedown', {
+        bubbles:true,
+        cancelable:true,
+        view:window,
+        clientX:x,
+        clientY:y
+      }));
+
+      el.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles:true,
+        cancelable:true,
+        view:window,
+        clientX:x,
+        clientY:y
+      }));
+
+      el.dispatchEvent(new MouseEvent('mouseup', {
+        bubbles:true,
+        cancelable:true,
+        view:window,
+        clientX:x,
+        clientY:y
+      }));
+
+      el.dispatchEvent(new MouseEvent('click', {
+        bubbles:true,
+        cancelable:true,
+        view:window,
+        clientX:x,
+        clientY:y
+      }));
+
+      await SOLUM.actions.esperar(500);
     },
 
     async setValor(campo, valor){
@@ -331,22 +330,16 @@
         'value'
       )?.set;
 
-      if(setter){
-        setter.call(campo, '');
-      }else{
-        campo.value = '';
-      }
+      if(setter) setter.call(campo, '');
+      else campo.value = '';
 
       campo.dispatchEvent(new Event('input', {bubbles:true}));
       campo.dispatchEvent(new Event('change', {bubbles:true}));
 
       await SOLUM.actions.esperar(100);
 
-      if(setter){
-        setter.call(campo, texto);
-      }else{
-        campo.value = texto;
-      }
+      if(setter) setter.call(campo, texto);
+      else campo.value = texto;
 
       campo.dispatchEvent(new InputEvent('input', {
         bubbles:true,
@@ -358,6 +351,35 @@
       campo.dispatchEvent(new Event('blur', {bubbles:true}));
 
       await SOLUM.actions.esperar(300);
+    },
+
+    async esperar(condicao, tempo=10000){
+      const inicio = Date.now();
+
+      while(Date.now() - inicio < tempo){
+        try{
+          if(condicao()) return true;
+        }catch(e){}
+
+        await SOLUM.actions.esperar(300);
+      }
+
+      return false;
+    },
+
+    async esperarElemento(busca, tempo=10000){
+      const inicio = Date.now();
+
+      while(Date.now() - inicio < tempo){
+        try{
+          const el = busca();
+          if(el) return el;
+        }catch(e){}
+
+        await SOLUM.actions.esperar(300);
+      }
+
+      return null;
     },
 
     normalizar(t){
