@@ -21,29 +21,28 @@
       }
 
       SOLUM.engine.log('Iniciando Nota Fiscal: NF ' + xml.numero, 'info');
-      SOLUM.engine.log('Produtor será pesquisado pelo BP: ' + bpProdutor, 'info');
+      SOLUM.engine.log('Produtor pelo BP: ' + bpProdutor, 'info');
 
       await this.abrirNovaNotaFiscal();
 
       await SOLUM.select.selecionarProdutor(bpProdutor);
-
       await SOLUM.select.selecionarFazendaPorIE(xml.inscricaoEstadual);
-
       await SOLUM.select.selecionarModelo55();
 
       await this.preencherChave(xml.chave);
-
       await this.consultarChave();
 
       SOLUM.engine.log('Consulta da NF finalizada.', 'ok');
 
-    await this.salvar();
+      await this.salvar();
 
-await this.confirmarPesoValor(xml);
+      await this.confirmarPesoValor(xml);
 
-await this.confirmarSalvarNota();
+      await this.confirmarSalvarNota();
 
-SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
+      SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
+
+      return true;
     },
 
     obterBPProdutor(planilha){
@@ -71,8 +70,6 @@ SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
       }
 
       botao.scrollIntoView({block:'center'});
-      botao.dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
-      botao.dispatchEvent(new MouseEvent('mouseup', {bubbles:true}));
       botao.click();
 
       SOLUM.engine.log('Clique em Nova Nota Fiscal.', 'ok');
@@ -96,10 +93,7 @@ SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
       const inicio = Date.now();
 
       while(Date.now() - inicio < tempo){
-        if(this.telaNFAberta()){
-          return true;
-        }
-
+        if(this.telaNFAberta()) return true;
         await SOLUM.actions.esperar(300);
       }
 
@@ -116,8 +110,6 @@ SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
       await this.setValor(campo, chave);
 
       SOLUM.engine.log('Chave preenchida.', 'ok');
-
-      await SOLUM.actions.esperar(500);
     },
 
     async consultarChave(){
@@ -142,7 +134,7 @@ SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
 
       SOLUM.engine.log('Lupa da chave clicada.', 'ok');
 
-      await SOLUM.actions.esperar(2500);
+      await SOLUM.actions.esperar(3000);
     },
 
     async salvar(){
@@ -159,121 +151,172 @@ SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
       await SOLUM.actions.esperar(1000);
     },
 
-   async confirmarSalvarNota(){
-  const inicio = Date.now();
+    async confirmarPesoValor(xml){
+      const campos = await this.esperarCamposConfirmacaoPesoValor();
 
-  while(Date.now() - inicio < 15000){
-    const botoes = [...document.querySelectorAll('button, a, span, div')]
-      .filter(e => e.offsetParent !== null)
-      .filter(e => !e.closest('#solum-rpa'));
+      const peso = this.obterPesoCorreto(xml);
+      const valor = this.obterValorCorreto(xml);
 
-    const sim = botoes.find(e => {
-      const txt = this.normalizar(e.innerText || e.textContent || '');
-      return txt === 'SIM';
-    });
+      if(!peso){
+        throw new Error('Peso da NF não encontrado para confirmação.');
+      }
 
-    if(sim){
-      const clicavel = sim.closest('button,a') || sim;
+      if(!valor){
+        throw new Error('Valor da NF não encontrado para confirmação.');
+      }
 
-      clicavel.click();
+      await this.setValor(campos.peso, peso);
+      await this.setValor(campos.valor, valor);
 
-      SOLUM.engine.log('Confirmação final SIM clicada.', 'ok');
+      await SOLUM.actions.esperar(500);
+
+      const pesoDigitado = String(campos.peso.value || '').trim();
+      const valorDigitado = String(campos.valor.value || '').trim();
+
+      if(!this.compararNumeros(pesoDigitado, peso)){
+        throw new Error('Peso não conferiu. Esperado: ' + peso + ' | Campo: ' + pesoDigitado);
+      }
+
+      if(!this.compararNumeros(valorDigitado, valor)){
+        throw new Error('Valor não conferiu. Esperado: ' + valor + ' | Campo: ' + valorDigitado);
+      }
+
+      SOLUM.engine.log('Peso da confirmação preenchido: ' + pesoDigitado, 'ok');
+      SOLUM.engine.log('Valor da confirmação preenchido: ' + valorDigitado, 'ok');
+
+      const confirmar = await this.esperarBotaoTexto('CONFIRMAR', 10000);
+
+      if(!confirmar){
+        throw new Error('Botão Confirmar de peso/valor não encontrado.');
+      }
+
+      confirmar.click();
+
+      SOLUM.engine.log('Confirmar peso/valor clicado.', 'ok');
 
       await SOLUM.actions.esperar(1500);
+
       return true;
-    }
+    },
 
-    await SOLUM.actions.esperar(300);
-  }
+    obterPesoCorreto(xml){
+      const campoTela = document.querySelector('#pesoNF');
+      const pesoTela = String(campoTela?.value || '').trim();
 
-  SOLUM.engine.log('Confirmação final SIM não apareceu.', 'info');
-  return false;
-},
+      if(pesoTela){
+        return this.limparPeso(pesoTela);
+      }
 
-    async confirmarPesoValor(xml){
-  const campos = await this.esperarCamposConfirmacaoPesoValor();
+      return this.limparPeso(xml.peso);
+    },
 
-  const peso =
-    this.formatarPeso(xml.peso || document.querySelector('#pesoNF')?.value);
+    obterValorCorreto(xml){
+      const campoTela = document.querySelector('#valorTotal');
+      const valorTela = String(campoTela?.value || '').trim();
 
-  const valor =
-    this.formatarValor(xml.valorTotal || document.querySelector('#valorTotal')?.value);
+      if(valorTela && valorTela !== 'R$ 0,00'){
+        return this.limparValor(valorTela);
+      }
 
-  await this.setValor(campos.peso, peso);
-  await this.setValor(campos.valor, valor);
+      return this.limparValor(xml.valorTotal);
+    },
 
-  SOLUM.engine.log('Peso da confirmação preenchido: ' + peso, 'ok');
-  SOLUM.engine.log('Valor da confirmação preenchido: ' + valor, 'ok');
+    limparPeso(peso){
+      return String(peso || '')
+        .replace(/[^\d.,]/g, '')
+        .trim();
+    },
 
-  const confirmar = [...document.querySelectorAll('button')]
-    .filter(b => b.offsetParent !== null)
-    .filter(b => !b.closest('#solum-rpa'))
-    .find(b => this.normalizar(b.innerText || b.textContent).includes('CONFIRMAR'));
+    limparValor(valor){
+      let v = String(valor || '')
+        .replace(/[^\d.,]/g, '')
+        .trim();
 
-  if(!confirmar){
-    throw new Error('Botão Confirmar não encontrado.');
-  }
+      if(!v) return '';
 
-  confirmar.click();
+      if(v.includes(',') && v.includes('.')){
+        return v;
+      }
 
-  SOLUM.engine.log('Confirmar peso/valor clicado.', 'ok');
+      if(v.includes('.') && !v.includes(',')){
+        const n = Number(v);
+        if(!isNaN(n)){
+          return n.toFixed(2).replace('.', ',');
+        }
+      }
 
-  await SOLUM.actions.esperar(1500);
+      return v;
+    },
 
-  return true;
+    compararNumeros(a, b){
+      const na = this.normalizarNumero(a);
+      const nb = this.normalizarNumero(b);
 
+      return na === nb;
+    },
+
+    normalizarNumero(v){
+      return String(v || '')
+        .replace(/[^\d]/g, '')
+        .replace(/^0+/, '');
     },
 
     async esperarCamposConfirmacaoPesoValor(tempo=15000){
-  const inicio = Date.now();
-
-  while(Date.now() - inicio < tempo){
-    const inputs = [...document.querySelectorAll('input')]
-      .filter(i => i.offsetParent !== null);
-
-    const peso = inputs.find(i =>
-      String(i.id || '').toLowerCase().includes('confirmacaopeso') ||
-      String(i.id || '').toLowerCase().includes('confirmacaopesonf') ||
-      String(i.placeholder || '').toLowerCase().includes('peso')
-    );
-
-    const valor = inputs.find(i =>
-      String(i.id || '').toLowerCase().includes('confirmacaovalor') ||
-      String(i.placeholder || '').toLowerCase().includes('valor')
-    );
-
-    if(peso && valor){
-      return {peso, valor};
-    }
-
-    await SOLUM.actions.esperar(300);
-  }
-
-  throw new Error('Campos de confirmação Peso/Valor não encontrados.');
-},
-
-    async esperarModalPesoValor(tempo=15000){
       const inicio = Date.now();
 
       while(Date.now() - inicio < tempo){
-        const modais = [...document.querySelectorAll('div')]
-          .filter(d => d.offsetParent !== null)
-          .filter(d => {
-            const txt = this.normalizar(d.innerText || d.textContent || '');
-            return txt.includes('CONFIRMACAO DE VALORES') &&
-                   txt.includes('PESO') &&
-                   txt.includes('VALOR') &&
-                   txt.includes('CONFIRMAR');
-          });
+        const inputs = [...document.querySelectorAll('input')]
+          .filter(i => i.offsetParent !== null);
 
-        if(modais.length){
-          return modais[0];
+        const peso = inputs.find(i =>
+          String(i.id || '').toLowerCase().includes('confirmacaopeso') ||
+          String(i.placeholder || '').toLowerCase().includes('peso')
+        );
+
+        const valor = inputs.find(i =>
+          String(i.id || '').toLowerCase().includes('confirmacaovalor') ||
+          String(i.placeholder || '').toLowerCase().includes('valor')
+        );
+
+        if(peso && valor){
+          return {peso, valor};
         }
 
         await SOLUM.actions.esperar(300);
       }
 
-      throw new Error('Janela de confirmação de peso/valor não apareceu.');
+      throw new Error('Campos de confirmação Peso/Valor não encontrados.');
+    },
+
+    async confirmarSalvarNota(){
+      const inicio = Date.now();
+
+      while(Date.now() - inicio < 15000){
+        const botoes = [...document.querySelectorAll('button, a, span, div')]
+          .filter(e => e.offsetParent !== null)
+          .filter(e => !e.closest('#solum-rpa'));
+
+        const sim = botoes.find(e => {
+          const txt = this.normalizar(e.innerText || e.textContent || '');
+          return txt === 'SIM';
+        });
+
+        if(sim){
+          const clicavel = sim.closest('button,a') || sim;
+
+          clicavel.click();
+
+          SOLUM.engine.log('Confirmação final SIM clicada.', 'ok');
+
+          await SOLUM.actions.esperar(1500);
+          return true;
+        }
+
+        await SOLUM.actions.esperar(300);
+      }
+
+      SOLUM.engine.log('Confirmação final SIM não apareceu.', 'info');
+      return false;
     },
 
     async esperarBotaoTexto(texto, tempo=10000){
@@ -281,7 +324,7 @@ SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
       const inicio = Date.now();
 
       while(Date.now() - inicio < tempo){
-        const botao = [...document.querySelectorAll('button')]
+        const botao = [...document.querySelectorAll('button, a, span, div')]
           .filter(b => b.offsetParent !== null)
           .filter(b => !b.closest('#solum-rpa'))
           .find(b => {
@@ -289,7 +332,9 @@ SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
             return t === alvo || t.includes(alvo);
           });
 
-        if(botao) return botao;
+        if(botao){
+          return botao.closest('button,a') || botao;
+        }
 
         await SOLUM.actions.esperar(300);
       }
@@ -301,6 +346,8 @@ SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
       campo.scrollIntoView({block:'center'});
       campo.focus();
       campo.click();
+
+      const texto = String(valor || '');
 
       const setter = Object.getOwnPropertyDescriptor(
         window.HTMLInputElement.prototype,
@@ -314,52 +361,26 @@ SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
       }
 
       campo.dispatchEvent(new Event('input', {bubbles:true}));
+      campo.dispatchEvent(new Event('change', {bubbles:true}));
+
+      await SOLUM.actions.esperar(100);
 
       if(setter){
-        setter.call(campo, String(valor || ''));
+        setter.call(campo, texto);
       }else{
-        campo.value = String(valor || '');
+        campo.value = texto;
       }
 
       campo.dispatchEvent(new InputEvent('input', {
         bubbles:true,
         inputType:'insertText',
-        data:String(valor || '')
+        data:texto
       }));
 
       campo.dispatchEvent(new Event('change', {bubbles:true}));
       campo.dispatchEvent(new Event('blur', {bubbles:true}));
 
       await SOLUM.actions.esperar(300);
-    },
-
-    formatarPeso(peso){
-  let p = String(peso || '').trim();
-
-  if(!p) return '';
-
-  // mantém exatamente o separador do XML
-  // exemplo: 47.360 continua 47.360
-  p = p.replace(/[^\d.,]/g, '');
-
-  return p;
-
-    },
-
-    formatarValor(valor){
-      let v = String(valor || '').trim();
-
-      if(!v) return '';
-
-      v = v.replace(',', '.');
-
-      const n = Number(v);
-
-      if(!isNaN(n)){
-        return n.toFixed(2).replace('.', ',');
-      }
-
-      return v;
     },
 
     normalizar(t){
