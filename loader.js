@@ -38,10 +38,10 @@
       await this.carregar('solum/primeira-tela.js');
       await this.carregar('solum/endereco-remessa.js');
       await this.carregar('solum/ticket.js');
-      await this.carregar('solum/nota-fiscal.js');
-      await this.carregar('readers/xlsx-reader.js');
+       await this.carregar('readers/xlsx-reader.js');
       await this.carregar('readers/xml-reader.js');
       await this.carregar('solum/select.js');
+      await this.carregar('solum/nota-fiscal.js');
 
       SOLUM.ui.iniciar();
 
