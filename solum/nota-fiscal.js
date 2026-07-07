@@ -33,29 +33,36 @@
     },
 
     async abrirNovaNotaFiscal(){
-      if(this.telaNF aberta()){
+      if(this.telaNFAberta()){
         SOLUM.engine.log('Tela Nova Nota Fiscal já está aberta.', 'ok');
         return true;
       }
 
       const botao = [...document.querySelectorAll('button')]
         .filter(b => b.offsetParent !== null)
-        .find(b => this.normalizar(b.innerText || b.textContent).includes('NOVA NOTA FISCAL'));
+        .filter(b => !b.closest('#solum-rpa'))
+        .find(b => this.normalizar(b.innerText || b.textContent) === 'NOVA NOTA FISCAL');
 
       if(!botao){
         throw new Error('Botão Nova Nota Fiscal não encontrado.');
       }
 
+      botao.scrollIntoView({block:'center'});
+
+      botao.dispatchEvent(new MouseEvent('mousedown', {bubbles:true}));
+      botao.dispatchEvent(new MouseEvent('mouseup', {bubbles:true}));
       botao.click();
+
       SOLUM.engine.log('Clique em Nova Nota Fiscal.', 'ok');
 
       await this.esperarTelaNF();
+
       SOLUM.engine.log('Nova Nota Fiscal aberta.', 'ok');
 
       return true;
     },
 
-    telaNF aberta(){
+    telaNFAberta(){
       return !!(
         document.querySelector('#fazenda') &&
         document.querySelector('#modeloNFId') &&
@@ -67,7 +74,7 @@
       const inicio = Date.now();
 
       while(Date.now() - inicio < tempo){
-        if(this.telaNF aberta()){
+        if(this.telaNFAberta()){
           return true;
         }
 
