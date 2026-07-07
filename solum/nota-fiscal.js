@@ -1,6 +1,8 @@
 (function(){
   window.SOLUM = window.SOLUM || {};
-  if(SOLUM.notaFiscal) return;
+
+  // força atualizar a versão quando colar novamente no Console
+  delete SOLUM.notaFiscal;
 
   const NotaFiscal = {
 
@@ -15,8 +17,15 @@
       this.executando = true;
 
       try{
-        const xml = SOLUM.context?.dados?.xml || SOLUM.engine.estado.dados.xml || {};
-        const planilha = SOLUM.context?.dados?.planilha || SOLUM.engine.estado.dados.planilha || {};
+        const xml =
+          SOLUM.context?.dados?.xml ||
+          SOLUM.engine?.estado?.dados?.xml ||
+          {};
+
+        const planilha =
+          SOLUM.context?.dados?.planilha ||
+          SOLUM.engine?.estado?.dados?.planilha ||
+          {};
 
         if(!xml.chave){
           alert('XML da nota fiscal não foi lido.');
@@ -27,12 +36,39 @@
         const bpProdutor = this.obterBPProdutor(planilha);
         if(!bpProdutor) throw new Error('BP do produtor não encontrado na planilha.');
 
-        SOLUM.engine.log('Iniciando Nota Fiscal: NF ' + xml.numero, 'info');
+        const ieProdutor =
+          xml.inscricaoEstadual ||
+          xml.ie ||
+          xml.ieProdutor ||
+          xml.inscricao ||
+          '';
+
+        SOLUM.engine.log('Iniciando Nota Fiscal: NF ' + (xml.numero || xml.nf || ''), 'info');
         SOLUM.engine.log('Produtor pelo BP: ' + bpProdutor, 'info');
+        SOLUM.engine.log('IE produtor usada: ' + ieProdutor, 'info');
 
         await this.abrirNovaNotaFiscal();
+
+        if(!SOLUM.select?.selecionarProdutor){
+          throw new Error('Função SOLUM.select.selecionarProdutor não encontrada.');
+        }
+
+        if(!SOLUM.select?.selecionarFazendaPorIE){
+          throw new Error('Função SOLUM.select.selecionarFazendaPorIE não encontrada.');
+        }
+
+        if(!SOLUM.select?.selecionarModelo55){
+          throw new Error('Função SOLUM.select.selecionarModelo55 não encontrada.');
+        }
+
         await SOLUM.select.selecionarProdutor(bpProdutor);
-        await SOLUM.select.selecionarFazendaPorIE(xml.inscricaoEstadual);
+
+        if(ieProdutor){
+          await SOLUM.select.selecionarFazendaPorIE(ieProdutor);
+        }else{
+          SOLUM.engine.log('IE do produtor não encontrada no XML. Pulando seleção por IE.', 'erro');
+        }
+
         await SOLUM.select.selecionarModelo55();
 
         await this.preencherChave(xml.chave);
@@ -46,6 +82,11 @@
         SOLUM.engine.log('Nota Fiscal salva e confirmada.', 'ok');
         return true;
 
+      }catch(e){
+        SOLUM.engine.log('Erro na Nota Fiscal: ' + e.message, 'erro');
+        console.error('Erro Nota Fiscal:', e);
+        throw e;
+
       }finally{
         this.executando = false;
       }
@@ -54,6 +95,7 @@
     obterBPProdutor(planilha){
       return String(
         planilha.bp ||
+        planilha.bpProdutor ||
         planilha.primeiro?.bp ||
         planilha.resultados?.[0]?.bp ||
         ''
@@ -66,14 +108,17 @@
         return true;
       }
 
-      const botao = [...document.querySelectorAll('button')]
+      const botao = [...document.querySelectorAll('button, a, span, div')]
         .filter(b => b.offsetParent !== null)
         .filter(b => !b.closest('#solum-rpa'))
-        .find(b => this.normalizar(b.innerText || b.textContent) === 'NOVA NOTA FISCAL');
+        .find(b => {
+          const txt = this.normalizar(b.innerText || b.textContent || '');
+          return txt === 'NOVA NOTA FISCAL' || txt.includes('NOVA NOTA FISCAL');
+        });
 
       if(!botao) throw new Error('Botão Nova Nota Fiscal não encontrado.');
 
-      await this.cliqueReal(botao);
+      await this.cliqueReal(botao.closest('button,a') || botao);
       SOLUM.engine.log('Clique em Nova Nota Fiscal.', 'ok');
 
       const ok = await this.esperar(() => this.telaNFAberta(), 15000);
@@ -96,23 +141,23 @@
       if(!campo) throw new Error('Campo Chave da NF não encontrado.');
 
       await this.setValor(campo, chave);
-      SOLUM.engine.log('Chave preenchida.', 'ok');
+      SOLUM.engine.log('Chave preenchida: ' + chave, 'ok');
     },
 
     async consultarChave(){
       const campo = document.querySelector('#chave');
       if(!campo) throw new Error('Campo Chave não encontrado.');
 
-      const container = campo.parentElement;
+      const container = campo.closest('div') || campo.parentElement;
 
       const lupa =
-        container.querySelector('button') ||
-        container.querySelector('i')?.closest('button') ||
-        campo.closest('div')?.querySelector('button, i, span');
+        container?.querySelector('button') ||
+        container?.querySelector('i')?.closest('button') ||
+        container?.querySelector('button, i, span, a');
 
       if(!lupa) throw new Error('Lupa da chave não encontrada.');
 
-      await this.cliqueReal(lupa);
+      await this.cliqueReal(lupa.closest('button,a') || lupa);
       SOLUM.engine.log('Lupa da chave clicada.', 'ok');
     },
 
@@ -186,13 +231,13 @@
       SOLUM.engine.log('Peso do modal preenchido: ' + campoPeso.value, 'ok');
       SOLUM.engine.log('Valor do modal preenchido: ' + campoValor.value, 'ok');
 
-      const confirmar = [...modal.querySelectorAll('button')]
+      const confirmar = [...modal.querySelectorAll('button, a, span, div')]
         .filter(b => b.offsetParent !== null)
         .find(b => this.normalizar(b.innerText || b.textContent).includes('CONFIRMAR'));
 
       if(!confirmar) throw new Error('Botão Confirmar do modal não encontrado.');
 
-      await this.cliqueReal(confirmar);
+      await this.cliqueReal(confirmar.closest('button,a') || confirmar);
       SOLUM.engine.log('Confirmar peso/valor clicado.', 'ok');
 
       await SOLUM.actions.esperar(1000);
@@ -229,23 +274,42 @@
     obterPesoCorreto(xml){
       const pesoTela = String(document.querySelector('#pesoNF')?.value || '').trim();
       if(pesoTela) return this.limparPeso(pesoTela);
-      return this.limparPeso(xml.peso);
+
+      return this.limparPeso(
+        xml.peso ||
+        xml.pesoNF ||
+        xml.pesoLiquido ||
+        xml.quantidade ||
+        ''
+      );
     },
 
     obterValorCorreto(xml){
       const valorTela = String(document.querySelector('#valorTotal')?.value || '').trim();
       if(valorTela && valorTela !== 'R$ 0,00') return this.limparValor(valorTela);
-      return this.limparValor(xml.valorTotal);
+
+      return this.limparValor(
+        xml.valorTotal ||
+        xml.valor ||
+        xml.total ||
+        xml.vNF ||
+        ''
+      );
     },
 
     limparPeso(peso){
-      return String(peso || '').replace(/[^\d.,]/g, '').trim();
+      return String(peso || '')
+        .replace(/[^\d.,]/g, '')
+        .trim();
     },
 
     limparValor(valor){
-      let v = String(valor || '').replace(/[^\d.,]/g, '').trim();
+      let v = String(valor || '')
+        .replace(/[^\d.,]/g, '')
+        .trim();
 
       if(!v) return '';
+
       if(v.includes(',') && v.includes('.')) return v;
 
       if(v.includes('.') && !v.includes(',')){
@@ -273,6 +337,8 @@
     },
 
     async cliqueReal(el){
+      if(!el) throw new Error('Elemento para clique não informado.');
+
       el.scrollIntoView({block:'center'});
       await SOLUM.actions.esperar(200);
 
@@ -292,6 +358,8 @@
     },
 
     async setValor(campo, valor){
+      if(!campo) throw new Error('Campo para preencher não informado.');
+
       campo.scrollIntoView({block:'center'});
       campo.focus();
       campo.click();
@@ -367,4 +435,6 @@
   };
 
   SOLUM.notaFiscal = NotaFiscal;
+
+  SOLUM.engine?.log?.('Módulo Nota Fiscal atualizado com segurança.', 'ok');
 })();
