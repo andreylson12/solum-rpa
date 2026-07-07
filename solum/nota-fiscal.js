@@ -147,7 +147,7 @@
   SOLUM.engine.log('Salvar NF clicado.', 'ok');
 
   await SOLUM.actions.esperar(2500);
-}
+
      },
 
     async confirmarPesoValor(xml){
