@@ -36,7 +36,11 @@
 
       await this.salvar();
 
-      await this.confirmarPesoValor(xml);
+      const abriuPesoValor = await this.tentarConfirmarPesoValor(xml);
+
+      if(!abriuPesoValor){
+        SOLUM.engine.log('Modal de peso/valor não abriu. Indo para confirmação final.', 'info');
+      }
 
       await this.confirmarSalvarNota();
 
@@ -137,6 +141,16 @@
       SOLUM.engine.log('Salvar NF clicado.', 'ok');
 
       await SOLUM.actions.esperar(1000);
+    },
+
+    async tentarConfirmarPesoValor(xml){
+      try{
+        await this.confirmarPesoValor(xml);
+        return true;
+      }catch(e){
+        SOLUM.engine.log(e.message, 'info');
+        return false;
+      }
     },
 
     async confirmarPesoValor(xml){
