@@ -266,35 +266,24 @@
       }, tempo);
     },
 
-    async cliqueReal(el){
-      el.scrollIntoView({block:'center'});
-      el.focus?.();
+  async cliqueReal(el){
+  el.scrollIntoView({block:'center'});
+  await SOLUM.actions.esperar(200);
 
-      const r = el.getBoundingClientRect();
-      const x = r.left + r.width / 2;
-      const y = r.top + r.height / 2;
+  const r = el.getBoundingClientRect();
+  const x = r.left + r.width / 2;
+  const y = r.top + r.height / 2;
 
-      const comum = {
-        bubbles:true,
-        cancelable:true,
-        clientX:x,
-        clientY:y
-      };
+  const alvo = document.elementFromPoint(x, y) || el;
 
-      try{
-        el.dispatchEvent(new PointerEvent('pointerdown', comum));
-      }catch(e){}
+  alvo.dispatchEvent(new MouseEvent('mouseover', {bubbles:true, clientX:x, clientY:y}));
+  alvo.dispatchEvent(new MouseEvent('mousemove', {bubbles:true, clientX:x, clientY:y}));
+  alvo.dispatchEvent(new MouseEvent('mousedown', {bubbles:true, cancelable:true, clientX:x, clientY:y}));
+  alvo.dispatchEvent(new MouseEvent('mouseup', {bubbles:true, cancelable:true, clientX:x, clientY:y}));
+  alvo.click();
 
-      el.dispatchEvent(new MouseEvent('mousedown', comum));
-
-      try{
-        el.dispatchEvent(new PointerEvent('pointerup', comum));
-      }catch(e){}
-
-      el.dispatchEvent(new MouseEvent('mouseup', comum));
-      el.dispatchEvent(new MouseEvent('click', comum));
-
-      await SOLUM.actions.esperar(500);
+  await SOLUM.actions.esperar(700);
+}
     },
 
     async setValor(campo, valor){
