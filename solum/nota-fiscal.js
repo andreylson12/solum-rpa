@@ -283,8 +283,9 @@
   alvo.click();
 
   await SOLUM.actions.esperar(700);
-}
-    },
+},
+
+async setValor(campo, valor){
 
     async setValor(campo, valor){
       campo.scrollIntoView({block:'center'});
