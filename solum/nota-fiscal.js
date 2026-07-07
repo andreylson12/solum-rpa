@@ -1,7 +1,6 @@
 (function(){
   window.SOLUM = window.SOLUM || {};
 
-  // força atualizar a versão quando colar novamente no Console
   delete SOLUM.notaFiscal;
 
   const NotaFiscal = {
@@ -163,29 +162,38 @@
 
     async esperarNotaCarregada(){
       const ok = await this.esperar(() => {
-        const serie = document.querySelector('#serie')?.value;
-        const numero = document.querySelector('#numeroNF')?.value;
-        const peso = document.querySelector('#pesoNF')?.value;
-        const valor = document.querySelector('#valorTotal')?.value;
-        const emissao = document.querySelector('#emissao')?.value;
-        const cfop = document.querySelector('#cfopId')?.value;
+        const serie = document.querySelector('#serie')?.value?.trim();
+        const numero = document.querySelector('#numeroNF')?.value?.trim();
+        const peso = document.querySelector('#pesoNF')?.value?.trim();
+        const valor = document.querySelector('#valorTotal')?.value?.trim();
 
-        return !!(
-          serie &&
-          numero &&
+        const carregouBasico = !!(serie && numero);
+        const carregouPesoValor = !!(
           peso &&
           valor &&
           valor !== 'R$ 0,00' &&
-          emissao &&
-          cfop
+          valor !== '0,00'
         );
-      }, 25000);
+
+        return carregouBasico && carregouPesoValor;
+      }, 35000);
+
+      const dadosDebug = {
+        serie: document.querySelector('#serie')?.value || '',
+        numeroNF: document.querySelector('#numeroNF')?.value || '',
+        pesoNF: document.querySelector('#pesoNF')?.value || '',
+        valorTotal: document.querySelector('#valorTotal')?.value || '',
+        emissao: document.querySelector('#emissao')?.value || '',
+        cfopId: document.querySelector('#cfopId')?.value || ''
+      };
+
+      SOLUM.engine.log('Debug NF carregada: ' + JSON.stringify(dadosDebug), 'info');
 
       if(!ok){
-        throw new Error('NF não carregou todos os dados após consulta da chave.');
+        throw new Error('NF não carregou peso/valor após consulta da chave. Ver debug no log.');
       }
 
-      SOLUM.engine.log('Dados da NF carregados.', 'ok');
+      SOLUM.engine.log('Dados principais da NF carregados.', 'ok');
       await SOLUM.actions.esperar(1000);
     },
 
@@ -436,5 +444,5 @@
 
   SOLUM.notaFiscal = NotaFiscal;
 
-  SOLUM.engine?.log?.('Módulo Nota Fiscal atualizado com segurança.', 'ok');
+  SOLUM.engine?.log?.('Módulo Nota Fiscal atualizado com debug de carregamento.', 'ok');
 })();
