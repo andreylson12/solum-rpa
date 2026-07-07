@@ -240,7 +240,6 @@
         .trim();
 
       if(!v) return '';
-
       if(v.includes(',') && v.includes('.')) return v;
 
       if(v.includes('.') && !v.includes(',')){
@@ -275,45 +274,25 @@
       const x = r.left + r.width / 2;
       const y = r.top + r.height / 2;
 
-      el.dispatchEvent(new PointerEvent('pointerdown', {
+      const comum = {
         bubbles:true,
         cancelable:true,
-        view:window,
         clientX:x,
         clientY:y
-      }));
+      };
 
-      el.dispatchEvent(new MouseEvent('mousedown', {
-        bubbles:true,
-        cancelable:true,
-        view:window,
-        clientX:x,
-        clientY:y
-      }));
+      try{
+        el.dispatchEvent(new PointerEvent('pointerdown', comum));
+      }catch(e){}
 
-      el.dispatchEvent(new PointerEvent('pointerup', {
-        bubbles:true,
-        cancelable:true,
-        view:window,
-        clientX:x,
-        clientY:y
-      }));
+      el.dispatchEvent(new MouseEvent('mousedown', comum));
 
-      el.dispatchEvent(new MouseEvent('mouseup', {
-        bubbles:true,
-        cancelable:true,
-        view:window,
-        clientX:x,
-        clientY:y
-      }));
+      try{
+        el.dispatchEvent(new PointerEvent('pointerup', comum));
+      }catch(e){}
 
-      el.dispatchEvent(new MouseEvent('click', {
-        bubbles:true,
-        cancelable:true,
-        view:window,
-        clientX:x,
-        clientY:y
-      }));
+      el.dispatchEvent(new MouseEvent('mouseup', comum));
+      el.dispatchEvent(new MouseEvent('click', comum));
 
       await SOLUM.actions.esperar(500);
     },
