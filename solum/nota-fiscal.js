@@ -102,22 +102,15 @@
 
     async preencherChave(chave){
       const campo = document.querySelector('#chave');
-
-      if(!campo){
-        throw new Error('Campo Chave da NF não encontrado.');
-      }
+      if(!campo) throw new Error('Campo Chave da NF não encontrado.');
 
       await this.setValor(campo, chave);
-
       SOLUM.engine.log('Chave preenchida.', 'ok');
     },
 
     async consultarChave(){
       const campo = document.querySelector('#chave');
-
-      if(!campo){
-        throw new Error('Campo Chave não encontrado.');
-      }
+      if(!campo) throw new Error('Campo Chave não encontrado.');
 
       const container = campo.parentElement;
 
@@ -126,9 +119,7 @@
         container.querySelector('i')?.closest('button') ||
         campo.closest('div')?.querySelector('button, i, span');
 
-      if(!lupa){
-        throw new Error('Lupa da chave não encontrada.');
-      }
+      if(!lupa) throw new Error('Lupa da chave não encontrada.');
 
       lupa.click();
 
@@ -139,10 +130,7 @@
 
     async salvar(){
       const botao = await this.esperarBotaoTexto('SALVAR', 10000);
-
-      if(!botao){
-        throw new Error('Botão Salvar da NF não encontrado.');
-      }
+      if(!botao) throw new Error('Botão Salvar da NF não encontrado.');
 
       botao.click();
 
@@ -152,42 +140,36 @@
     },
 
     async confirmarPesoValor(xml){
-      const campos = await this.esperarCamposConfirmacaoPesoValor();
+      const modal = await this.esperarModalConfirmacaoValores();
+
+      const inputs = [...modal.querySelectorAll('input')]
+        .filter(i => i.offsetParent !== null);
+
+      const campoPeso = inputs[0];
+      const campoValor = inputs[1];
+
+      if(!campoPeso || !campoValor){
+        throw new Error('Campos Peso/Valor do modal não encontrados.');
+      }
 
       const peso = this.obterPesoCorreto(xml);
       const valor = this.obterValorCorreto(xml);
 
-      if(!peso){
-        throw new Error('Peso da NF não encontrado para confirmação.');
-      }
+      if(!peso) throw new Error('Peso da NF não encontrado para confirmação.');
+      if(!valor) throw new Error('Valor da NF não encontrado para confirmação.');
 
-      if(!valor){
-        throw new Error('Valor da NF não encontrado para confirmação.');
-      }
+      await this.setValor(campoPeso, peso);
+      await this.setValor(campoValor, valor);
 
-      await this.setValor(campos.peso, peso);
-      await this.setValor(campos.valor, valor);
+      SOLUM.engine.log('Peso do modal preenchido: ' + campoPeso.value, 'ok');
+      SOLUM.engine.log('Valor do modal preenchido: ' + campoValor.value, 'ok');
 
-      await SOLUM.actions.esperar(500);
-
-      const pesoDigitado = String(campos.peso.value || '').trim();
-      const valorDigitado = String(campos.valor.value || '').trim();
-
-      if(!this.compararNumeros(pesoDigitado, peso)){
-        throw new Error('Peso não conferiu. Esperado: ' + peso + ' | Campo: ' + pesoDigitado);
-      }
-
-      if(!this.compararNumeros(valorDigitado, valor)){
-        throw new Error('Valor não conferiu. Esperado: ' + valor + ' | Campo: ' + valorDigitado);
-      }
-
-      SOLUM.engine.log('Peso da confirmação preenchido: ' + pesoDigitado, 'ok');
-      SOLUM.engine.log('Valor da confirmação preenchido: ' + valorDigitado, 'ok');
-
-      const confirmar = await this.esperarBotaoTexto('CONFIRMAR', 10000);
+      const confirmar = [...modal.querySelectorAll('button')]
+        .filter(b => b.offsetParent !== null)
+        .find(b => this.normalizar(b.innerText || b.textContent).includes('CONFIRMAR'));
 
       if(!confirmar){
-        throw new Error('Botão Confirmar de peso/valor não encontrado.');
+        throw new Error('Botão Confirmar do modal não encontrado.');
       }
 
       confirmar.click();
@@ -197,6 +179,30 @@
       await SOLUM.actions.esperar(1500);
 
       return true;
+    },
+
+    async esperarModalConfirmacaoValores(tempo=15000){
+      const inicio = Date.now();
+
+      while(Date.now() - inicio < tempo){
+        const modais = [...document.querySelectorAll('div')]
+          .filter(d => d.offsetParent !== null)
+          .filter(d => {
+            const txt = this.normalizar(d.innerText || d.textContent || '');
+            return txt.includes('CONFIRMACAO DE VALORES') &&
+                   txt.includes('PESO') &&
+                   txt.includes('VALOR') &&
+                   txt.includes('CONFIRMAR');
+          });
+
+        if(modais.length){
+          return modais[0];
+        }
+
+        await SOLUM.actions.esperar(300);
+      }
+
+      throw new Error('Modal de Confirmação de Valores não apareceu.');
     },
 
     obterPesoCorreto(xml){
@@ -246,46 +252,6 @@
       }
 
       return v;
-    },
-
-    compararNumeros(a, b){
-      const na = this.normalizarNumero(a);
-      const nb = this.normalizarNumero(b);
-
-      return na === nb;
-    },
-
-    normalizarNumero(v){
-      return String(v || '')
-        .replace(/[^\d]/g, '')
-        .replace(/^0+/, '');
-    },
-
-    async esperarCamposConfirmacaoPesoValor(tempo=15000){
-      const inicio = Date.now();
-
-      while(Date.now() - inicio < tempo){
-        const inputs = [...document.querySelectorAll('input')]
-          .filter(i => i.offsetParent !== null);
-
-        const peso = inputs.find(i =>
-          String(i.id || '').toLowerCase().includes('confirmacaopeso') ||
-          String(i.placeholder || '').toLowerCase().includes('peso')
-        );
-
-        const valor = inputs.find(i =>
-          String(i.id || '').toLowerCase().includes('confirmacaovalor') ||
-          String(i.placeholder || '').toLowerCase().includes('valor')
-        );
-
-        if(peso && valor){
-          return {peso, valor};
-        }
-
-        await SOLUM.actions.esperar(300);
-      }
-
-      throw new Error('Campos de confirmação Peso/Valor não encontrados.');
     },
 
     async confirmarSalvarNota(){
