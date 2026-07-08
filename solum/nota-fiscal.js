@@ -192,10 +192,11 @@
 
   const peso = this.limparPeso(
   document.querySelector('#pesoNF')?.value ||
-  xml.pesoL ||
+  xml.qCom ||
   xml.qTrib ||
+  xml.pesoL ||
   xml.peso
- );
+);
   const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
 
   await this.setValor(campoPeso, peso);
