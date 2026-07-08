@@ -190,13 +190,14 @@
     throw new Error('Campo confirmacaoValor não encontrado.');
   }
 
-  const peso = this.limparPeso(
-  document.querySelector('#pesoNF')?.value ||
+ const peso = this.limparPeso(
   xml.qCom ||
   xml.qTrib ||
   xml.pesoL ||
+  document.querySelector('#pesoNF')?.value ||
   xml.peso
 );
+
   const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
 
   await this.setValor(campoPeso, peso);
