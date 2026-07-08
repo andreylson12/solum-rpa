@@ -332,11 +332,20 @@
       await SOLUM.actions.esperar(300);
     },
    limparPeso(v){
-   return String(v || '')
-    .replace(/[^\d]/g, '')
-    .trim();
-    
-    },
+  let p = String(v || '').trim();
+
+  p = p.replace(/[^\d.,]/g, '');
+
+  if(p.includes('.') && !p.includes(',')){
+    return p + ',000';
+  }
+
+  if(/^\d+$/.test(p)){
+    return p + ',000';
+  }
+
+  return p;
+ },
 
     limparValor(v){
       return String(v || '')
