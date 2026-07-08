@@ -199,7 +199,7 @@ async preencherConfirmacaoValores(xml){
 
   SOLUM.engine.log('Peso confirmado: ' + campoPeso.value, 'ok');
   SOLUM.engine.log('Valor confirmado: ' + campoValor.value, 'ok');
-}
+},
 
     async clicarConfirmarValores(){
       const btn = document.querySelector('button.botaoConfirmacao');
