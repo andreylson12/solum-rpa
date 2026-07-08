@@ -195,7 +195,7 @@
   xml.pesoL ||
   xml.qCom ||
   xml.qTrib ||
-  xml.peso 
+  xml.pesoNF||
  );
   const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
 
