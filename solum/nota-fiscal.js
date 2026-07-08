@@ -297,39 +297,48 @@
         });
     },
 
-    async setValor(campo, valor){
-      campo.scrollIntoView({block:'center'});
-      campo.focus();
-      campo.click();
+   async setValor(campo, valor){
+  campo.scrollIntoView({block:'center'});
+  campo.focus();
+  campo.click();
 
-      const texto = String(valor || '');
+  const texto = String(valor || '');
 
-      const setter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        'value'
-      )?.set;
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    'value'
+  )?.set;
 
-      if(setter) setter.call(campo, '');
-      else campo.value = '';
+  if(setter) setter.call(campo, '');
+  else campo.value = '';
 
-      campo.dispatchEvent(new Event('input', {bubbles:true}));
-      campo.dispatchEvent(new Event('change', {bubbles:true}));
+  campo.dispatchEvent(new Event('input', {bubbles:true}));
+  campo.dispatchEvent(new Event('change', {bubbles:true}));
 
-      await SOLUM.actions.esperar(100);
+  await SOLUM.actions.esperar(150);
 
-      if(setter) setter.call(campo, texto);
-      else campo.value = texto;
+  if(setter) setter.call(campo, texto);
+  else campo.value = texto;
 
-      campo.dispatchEvent(new InputEvent('input', {
-        bubbles:true,
-        inputType:'insertText',
-        data:texto
-      }));
+  campo.dispatchEvent(new InputEvent('input', {
+    bubbles:true,
+    cancelable:true,
+    inputType:'insertText',
+    data:texto
+  }));
 
-      campo.dispatchEvent(new Event('change', {bubbles:true}));
-      campo.dispatchEvent(new Event('blur', {bubbles:true}));
+  campo.dispatchEvent(new KeyboardEvent('keydown', {bubbles:true, key:'Tab'}));
+  campo.dispatchEvent(new KeyboardEvent('keyup', {bubbles:true, key:'Tab'}));
 
-      await SOLUM.actions.esperar(300);
+  campo.classList.remove('ng-pristine','ng-untouched');
+  campo.classList.add('ng-dirty','ng-touched','ng-valid');
+
+  campo.dispatchEvent(new Event('change', {bubbles:true}));
+  campo.dispatchEvent(new Event('blur', {bubbles:true}));
+  campo.dispatchEvent(new FocusEvent('focusout', {bubbles:true}));
+
+  await SOLUM.actions.esperar(600);
+
     },
   
    limparPeso(v){
