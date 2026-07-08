@@ -193,9 +193,8 @@
   const peso = this.limparPeso(
   document.querySelector('#pesoNF')?.value ||
   xml.pesoL ||
-  xml.qCom ||
   xml.qTrib ||
-  xml.pesoNF||
+  xml.peso
  );
   const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
 
