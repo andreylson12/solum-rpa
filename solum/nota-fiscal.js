@@ -331,15 +331,11 @@
 
       await SOLUM.actions.esperar(300);
     },
-
-    limparPeso(v){
-      let p = String(v || '').trim();
-
-      p = p.replace(/[^\d.,]/g, '');
-
-      if(/^\d{5,6}$/.test(p)){
-        p = p.slice(0, -3) + '.' + p.slice(-3);
-      }
+   limparPeso(v){
+   return String(v || '')
+    .replace(/[^\d]/g, '')
+    .trim();
+    },
 
       return p;
     },
