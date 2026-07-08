@@ -336,7 +336,6 @@
     .replace(/[^\d]/g, '')
     .trim();
     
-      return p;
     },
 
     limparValor(v){
