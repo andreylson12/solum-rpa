@@ -332,27 +332,30 @@
       await SOLUM.actions.esperar(300);
     },
   
-    limparPeso(v){
+   limparPeso(v){
   let p = String(v || '').trim();
   p = p.replace(/[^\d.,]/g, '');
 
-  // se vier 47360, vira 47.360
   if(/^\d{5,6}$/.test(p)){
     p = p.slice(0, -3) + '.' + p.slice(-3);
   }
 
-  // se vier 47.360,00 remove o ,00
   p = p.replace(/,0+$/, '');
 
   return p;
 },
 
-    limparValor(v){
-      return String(v || '')
-        .replace('R$', '')
-        .replace(/\s+/g, '')
-        .trim();
-    },
+   limparValor(v){
+  let valor = String(v || '').trim();
+
+  valor = valor.replace(/\s+/g, ' ').trim();
+
+  if(valor && !valor.startsWith('R$')){
+    valor = 'R$ ' + valor.replace('R$', '').trim();
+  }
+
+  return valor;
+   },
 
     async esperar(fn, tempo=10000){
       const inicio = Date.now();
