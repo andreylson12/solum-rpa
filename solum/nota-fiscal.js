@@ -5,6 +5,8 @@
   const NotaFiscal = {
 
     rodando:false,
+    pesoConfirmacao:'',
+    valorConfirmacao:'',
 
     async executar(){
       if(this.rodando){
@@ -26,18 +28,25 @@
         const bpProdutor = this.obterBPProdutor(planilha);
         if(!bpProdutor) throw new Error('BP do produtor não encontrado na planilha.');
 
-        SOLUM.engine.log('Iniciando NF ' + xml.numero, 'info');
+        SOLUM.engine.log('Iniciando NF ' + (xml.numero || xml.nf || ''), 'info');
 
         await this.abrirNovaNotaFiscal();
         await SOLUM.select.selecionarProdutor(bpProdutor);
+        SOLUM.engine.log('Produtor selecionado.', 'ok');
+
         await SOLUM.select.selecionarFazendaPorIE(xml.inscricaoEstadual);
+        SOLUM.engine.log('Fazenda selecionada.', 'ok');
+
         await SOLUM.select.selecionarModelo55();
+        SOLUM.engine.log('Modelo 55 selecionado.', 'ok');
 
         await this.preencherChave(xml.chave);
         await this.clicarLupaChave();
 
         await this.esperarNotaCarregada();
         await this.esperarSalvarHabilitado();
+
+        this.guardarPesoValor();
 
         await this.clicarSalvar();
         await this.preencherConfirmacaoValores(xml);
@@ -75,6 +84,8 @@
 
       const abriu = await this.esperar(() => this.telaNFAberta(), 15000);
       if(!abriu) throw new Error('Tela Nova Nota Fiscal não abriu.');
+
+      return true;
     },
 
     telaNFAberta(){
@@ -98,6 +109,7 @@
       if(!campo) throw new Error('Campo chave não encontrado.');
 
       const grupo = campo.parentElement;
+
       const lupa =
         grupo.querySelector('button') ||
         grupo.querySelector('i')?.closest('button') ||
@@ -111,18 +123,27 @@
 
     async esperarNotaCarregada(){
       const ok = await this.esperar(() => {
-        return (
-          document.querySelector('#serie')?.value &&
-          document.querySelector('#numeroNF')?.value &&
-          document.querySelector('#numeroProtocolo')?.value &&
-          document.querySelector('#emissao')?.value &&
-          document.querySelector('#cfopId')?.value &&
-          document.querySelector('#pesoNF')?.value &&
-          document.querySelector('#valorTotal')?.value &&
-          document.querySelector('#valorTotal')?.value !== 'R$ 0,00' &&
-          document.querySelector('#dataAutenticacao')?.value
+        const serie = document.querySelector('#serie')?.value;
+        const numero = document.querySelector('#numeroNF')?.value;
+        const protocolo = document.querySelector('#numeroProtocolo')?.value;
+        const emissao = document.querySelector('#emissao')?.value;
+        const cfop = document.querySelector('#cfopId')?.value;
+        const peso = document.querySelector('#pesoNF')?.value;
+        const valor = document.querySelector('#valorTotal')?.value;
+        const autenticacao = document.querySelector('#dataAutenticacao')?.value;
+
+        return !!(
+          serie &&
+          numero &&
+          protocolo &&
+          emissao &&
+          cfop &&
+          peso &&
+          valor &&
+          valor !== 'R$ 0,00' &&
+          autenticacao
         );
-      }, 25000);
+      }, 30000);
 
       if(!ok) throw new Error('NF não carregou todos os dados.');
 
@@ -133,12 +154,36 @@
     async esperarSalvarHabilitado(){
       const ok = await this.esperar(() => {
         const btn = this.botaoSalvarNF();
-        return btn && !String(btn.className).includes('disabled');
+
+        return !!(
+          btn &&
+          !btn.disabled &&
+          !String(btn.className || '').includes('disabled')
+        );
       }, 15000);
 
       if(!ok) throw new Error('Botão Salvar não habilitou.');
 
       SOLUM.engine.log('Salvar habilitado.', 'ok');
+    },
+
+    guardarPesoValor(){
+      const pesoTela = document.querySelector('#pesoNF')?.value;
+      const valorTela = document.querySelector('#valorTotal')?.value;
+
+      this.pesoConfirmacao = this.limparPeso(pesoTela);
+      this.valorConfirmacao = this.limparValor(valorTela);
+
+      SOLUM.engine.log('Peso guardado para confirmação: ' + this.pesoConfirmacao, 'info');
+      SOLUM.engine.log('Valor guardado para confirmação: ' + this.valorConfirmacao, 'info');
+
+      if(!this.pesoConfirmacao){
+        throw new Error('Peso da tela não encontrado antes de salvar.');
+      }
+
+      if(!this.valorConfirmacao){
+        throw new Error('Valor da tela não encontrado antes de salvar.');
+      }
     },
 
     botaoSalvarNF(){
@@ -147,15 +192,9 @@
         .filter(b => !b.closest('#solum-rpa'))
         .find(b =>
           this.normalizar(b.innerText || b.textContent) === 'SALVAR' &&
-          String(b.className).includes('button-sesar-verde-escuro')
+          String(b.className || '').includes('button-sesar-verde-escuro')
         );
     },
-
-    this.pesoConfirmacao = this.limparPeso(document.querySelector('#pesoNF')?.value);
-  this.valorConfirmacao = this.limparValor(document.querySelector('#valorTotal')?.value);
-
-   SOLUM.engine.log('Peso guardado para confirmação: ' + this.pesoConfirmacao, 'info');
-   SOLUM.engine.log('Valor guardado para confirmação: ' + this.valorConfirmacao, 'info');
 
     async clicarSalvar(){
       const btn = this.botaoSalvarNF();
@@ -164,50 +203,55 @@
       btn.click();
       SOLUM.engine.log('Salvar clicado.', 'ok');
 
-      const abriu = await this.esperar(() => !!this.modalConfirmacaoValores(), 15000);
+      const abriu = await this.esperar(() => {
+        const peso = document.querySelector('#confirmacaoPeso');
+        const valor = document.querySelector('#confirmacaoValor');
+        const confirmar = document.querySelector('button.botaoConfirmacao');
+
+        return !!(
+          peso &&
+          valor &&
+          peso.offsetParent !== null &&
+          valor.offsetParent !== null &&
+          confirmar &&
+          confirmar.offsetParent !== null
+        );
+      }, 15000);
+
       if(!abriu) throw new Error('Confirmação de valores não abriu.');
+
+      SOLUM.engine.log('Modal de confirmação de valores aberto.', 'ok');
     },
 
-         modalConfirmacaoValores(){
-      return [...document.querySelectorAll('div')]
-        .filter(d => d.offsetParent !== null)
-        .find(d => {
-          const txt = this.normalizar(d.innerText || d.textContent || '');
-          const temBotao = d.querySelector('button.botaoConfirmacao');
-          const inputs = d.querySelectorAll('input');
+    async preencherConfirmacaoValores(xml){
+      const campoPeso = document.querySelector('#confirmacaoPeso');
+      const campoValor = document.querySelector('#confirmacaoValor');
 
-          return txt.includes('CONFIRMACAO DE VALORES') &&
-                 txt.includes('PESO') &&
-                 txt.includes('VALOR') &&
-                 temBotao &&
-                 inputs.length >= 2;
-        }) || null;
+      if(!campoPeso || campoPeso.offsetParent === null){
+        throw new Error('Campo confirmacaoPeso não encontrado.');
+      }
+
+      if(!campoValor || campoValor.offsetParent === null){
+        throw new Error('Campo confirmacaoValor não encontrado.');
+      }
+
+      const peso =
+        this.pesoConfirmacao ||
+        this.limparPeso(xml.qCom || xml.qTrib || xml.pesoL || xml.peso);
+
+      const valor =
+        this.valorConfirmacao ||
+        this.limparValor(xml.valorTotal);
+
+      if(!peso) throw new Error('Peso para confirmação não encontrado.');
+      if(!valor) throw new Error('Valor para confirmação não encontrado.');
+
+      await this.setValor(campoPeso, peso);
+      await this.setValor(campoValor, valor);
+
+      SOLUM.engine.log('Peso confirmado: ' + campoPeso.value, 'ok');
+      SOLUM.engine.log('Valor confirmado: ' + campoValor.value, 'ok');
     },
-
-   async preencherConfirmacaoValores(xml){
-  const campoPeso = document.querySelector('#confirmacaoPeso');
-  const campoValor = document.querySelector('#confirmacaoValor');
-
-  if(!campoPeso || campoPeso.offsetParent === null){
-    throw new Error('Campo confirmacaoPeso não encontrado.');
-  }
-
-  if(!campoValor || campoValor.offsetParent === null){
-    throw new Error('Campo confirmacaoValor não encontrado.');
-  }
-
-const peso = this.pesoConfirmacao || this.limparPeso(xml.qCom || xml.qTrib || xml.pesoL || xml.peso);
-const valor = this.valorConfirmacao || this.limparValor(xml.valorTotal);
-);
-
-  const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
-
-  await this.setValor(campoPeso, peso);
-  await this.setValor(campoValor, valor);
-
-  SOLUM.engine.log('Peso confirmado: ' + campoPeso.value, 'ok');
-  SOLUM.engine.log('Valor confirmado: ' + campoValor.value, 'ok');
-},
 
     async clicarConfirmarValores(){
       const btn = document.querySelector('button.botaoConfirmacao');
@@ -288,30 +332,26 @@ const valor = this.valorConfirmacao || this.limparValor(xml.valorTotal);
       await SOLUM.actions.esperar(300);
     },
 
-   limparPeso(v){
-  let p = String(v || '').trim();
+    limparPeso(v){
+      let p = String(v || '').trim();
 
-  p = p.replace(/[^\d.,]/g, '');
+      p = p.replace(/[^\d.,]/g, '');
 
-  if(/^\d{5,6}$/.test(p)){
-    p = p.slice(0, -3) + '.' + p.slice(-3);
-  }
+      if(/^\d{5,6}$/.test(p)){
+        p = p.slice(0, -3) + '.' + p.slice(-3);
+      }
 
-  return p;
-},
+      return p;
+    },
 
-limparValor(v){
-  let valor = String(v || '').trim();
+    limparValor(v){
+      return String(v || '')
+        .replace('R$', '')
+        .replace(/\s+/g, '')
+        .trim();
+    },
 
-  valor = valor
-    .replace('R$', '')
-    .replace(/\s+/g, '')
-    .trim();
-
-  return valor;
-},
-
-async esperar(fn, tempo=10000){
+    async esperar(fn, tempo=10000){
       const inicio = Date.now();
 
       while(Date.now() - inicio < tempo){
