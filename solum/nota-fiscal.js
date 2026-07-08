@@ -284,7 +284,6 @@
 
   p = p.replace(/[^\d.,]/g, '');
 
-  // Se vier 47360 do XML, transforma para 47.360
   if(/^\d{5,6}$/.test(p)){
     p = p.slice(0, -3) + '.' + p.slice(-3);
   }
@@ -292,7 +291,18 @@
   return p;
 },
 
-    async esperar(fn, tempo=10000){
+limparValor(v){
+  let valor = String(v || '').trim();
+
+  valor = valor
+    .replace('R$', '')
+    .replace(/\s+/g, '')
+    .trim();
+
+  return valor;
+},
+
+async esperar(fn, tempo=10000){
       const inicio = Date.now();
 
       while(Date.now() - inicio < tempo){
