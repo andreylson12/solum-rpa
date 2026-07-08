@@ -331,21 +331,21 @@
 
       await SOLUM.actions.esperar(300);
     },
-   limparPeso(v){
+  
+    limparPeso(v){
   let p = String(v || '').trim();
-
   p = p.replace(/[^\d.,]/g, '');
 
-  if(p.includes('.') && !p.includes(',')){
-    return p + ',000';
+  // se vier 47360, vira 47.360
+  if(/^\d{5,6}$/.test(p)){
+    p = p.slice(0, -3) + '.' + p.slice(-3);
   }
 
-  if(/^\d+$/.test(p)){
-    return p + ',000';
-  }
+  // se vier 47.360,00 remove o ,00
+  p = p.replace(/,0+$/, '');
 
   return p;
- },
+},
 
     limparValor(v){
       return String(v || '')
