@@ -178,29 +178,27 @@
         }) || null;
     },
 
-    async preencherConfirmacaoValores(xml){
-      const modal = this.modalConfirmacaoValores();
-      if(!modal) throw new Error('Modal de confirmação não encontrado.');
+   async preencherConfirmacaoValores(xml){
+  const campoPeso = document.querySelector('#confirmacaoPeso');
+  const campoValor = document.querySelector('#confirmacaoValor');
 
-      const inputs = [...modal.querySelectorAll('input')]
-        .filter(i => i.offsetParent !== null);
+  if(!campoPeso || campoPeso.offsetParent === null){
+    throw new Error('Campo confirmacaoPeso não encontrado.');
+  }
 
-      const campoPeso = inputs[0];
-      const campoValor = inputs[1];
+  if(!campoValor || campoValor.offsetParent === null){
+    throw new Error('Campo confirmacaoValor não encontrado.');
+  }
 
-      if(!campoPeso || !campoValor){
-        throw new Error('Campos Peso/Valor não encontrados no modal.');
-      }
+  const peso = this.limparPeso(document.querySelector('#pesoNF')?.value || xml.peso);
+  const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
 
-      const peso = this.limparPeso(document.querySelector('#pesoNF')?.value || xml.peso);
-      const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
+  await this.setValor(campoPeso, peso);
+  await this.setValor(campoValor, valor);
 
-      await this.setValor(campoPeso, peso);
-      await this.setValor(campoValor, valor);
-
-      SOLUM.engine.log('Peso confirmado: ' + campoPeso.value, 'ok');
-      SOLUM.engine.log('Valor confirmado: ' + campoValor.value, 'ok');
-    },
+  SOLUM.engine.log('Peso confirmado: ' + campoPeso.value, 'ok');
+  SOLUM.engine.log('Valor confirmado: ' + campoValor.value, 'ok');
+},
 
     async clicarConfirmarValores(){
       const btn = document.querySelector('button.botaoConfirmacao');
