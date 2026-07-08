@@ -151,6 +151,12 @@
         );
     },
 
+    this.pesoConfirmacao = this.limparPeso(document.querySelector('#pesoNF')?.value);
+  this.valorConfirmacao = this.limparValor(document.querySelector('#valorTotal')?.value);
+
+   SOLUM.engine.log('Peso guardado para confirmação: ' + this.pesoConfirmacao, 'info');
+   SOLUM.engine.log('Valor guardado para confirmação: ' + this.valorConfirmacao, 'info');
+
     async clicarSalvar(){
       const btn = this.botaoSalvarNF();
       if(!btn) throw new Error('Botão Salvar da NF não encontrado.');
@@ -190,12 +196,8 @@
     throw new Error('Campo confirmacaoValor não encontrado.');
   }
 
- const peso = this.limparPeso(
-  xml.qCom ||
-  xml.qTrib ||
-  xml.pesoL ||
-  document.querySelector('#pesoNF')?.value ||
-  xml.peso
+const peso = this.pesoConfirmacao || this.limparPeso(xml.qCom || xml.qTrib || xml.pesoL || xml.peso);
+const valor = this.valorConfirmacao || this.limparValor(xml.valorTotal);
 );
 
   const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
