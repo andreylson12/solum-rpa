@@ -162,44 +162,45 @@
       if(!abriu) throw new Error('Confirmação de valores não abriu.');
     },
 
-   modalConfirmacaoValores(){
-  return [...document.querySelectorAll('div')]
-    .filter(d => d.offsetParent !== null)
-    .find(d => {
-      const txt = this.normalizar(d.innerText || d.textContent || '');
-      const temBotao = d.querySelector('button.botaoConfirmacao');
-      const inputs = d.querySelectorAll('input');
-      return txt.includes('CONFIRMACAO DE VALORES') &&
-             txt.includes('PESO') &&
-             txt.includes('VALOR') &&
-             temBotao &&
-             inputs.length >= 2;
-    }) || null;
-},
+         modalConfirmacaoValores(){
+      return [...document.querySelectorAll('div')]
+        .filter(d => d.offsetParent !== null)
+        .find(d => {
+          const txt = this.normalizar(d.innerText || d.textContent || '');
+          const temBotao = d.querySelector('button.botaoConfirmacao');
+          const inputs = d.querySelectorAll('input');
 
-async preencherConfirmacaoValores(xml){
-  const modal = this.modalConfirmacaoValores();
-  if(!modal) throw new Error('Modal de confirmação não encontrado.');
+          return txt.includes('CONFIRMACAO DE VALORES') &&
+                 txt.includes('PESO') &&
+                 txt.includes('VALOR') &&
+                 temBotao &&
+                 inputs.length >= 2;
+        }) || null;
+    },
 
-  const inputs = [...modal.querySelectorAll('input')]
-    .filter(i => i.offsetParent !== null);
+    async preencherConfirmacaoValores(xml){
+      const modal = this.modalConfirmacaoValores();
+      if(!modal) throw new Error('Modal de confirmação não encontrado.');
 
-  const campoPeso = inputs[0];
-  const campoValor = inputs[1];
+      const inputs = [...modal.querySelectorAll('input')]
+        .filter(i => i.offsetParent !== null);
 
-  if(!campoPeso || !campoValor){
-    throw new Error('Campos Peso/Valor não encontrados no modal.');
-  }
+      const campoPeso = inputs[0];
+      const campoValor = inputs[1];
 
-  const peso = this.limparPeso(document.querySelector('#pesoNF')?.value || xml.peso);
-  const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
+      if(!campoPeso || !campoValor){
+        throw new Error('Campos Peso/Valor não encontrados no modal.');
+      }
 
-  await this.setValor(campoPeso, peso);
-  await this.setValor(campoValor, valor);
+      const peso = this.limparPeso(document.querySelector('#pesoNF')?.value || xml.peso);
+      const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
 
-  SOLUM.engine.log('Peso confirmado: ' + campoPeso.value, 'ok');
-  SOLUM.engine.log('Valor confirmado: ' + campoValor.value, 'ok');
-},
+      await this.setValor(campoPeso, peso);
+      await this.setValor(campoValor, valor);
+
+      SOLUM.engine.log('Peso confirmado: ' + campoPeso.value, 'ok');
+      SOLUM.engine.log('Valor confirmado: ' + campoValor.value, 'ok');
+    },
 
     async clicarConfirmarValores(){
       const btn = document.querySelector('button.botaoConfirmacao');
