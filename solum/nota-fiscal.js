@@ -190,7 +190,7 @@
     throw new Error('Campo confirmacaoValor não encontrado.');
   }
 
-  const peso = this.limparPeso(document.querySelector('#pesoNF')?.value || xml.peso);
+  const peso = String(document.querySelector('#pesoNF')?.value || '').trim() || this.limparPeso(xml.peso);
   const valor = this.limparValor(document.querySelector('#valorTotal')?.value || xml.valorTotal);
 
   await this.setValor(campoPeso, peso);
@@ -279,17 +279,18 @@
       await SOLUM.actions.esperar(300);
     },
 
-    limparPeso(v){
-      return String(v || '')
-        .replace(/[^\d.,]/g, '')
-        .trim();
-    },
+   limparPeso(v){
+  let p = String(v || '').trim();
 
-    limparValor(v){
-      return String(v || '')
-        .replace(/[^\d.,]/g, '')
-        .trim();
-    },
+  p = p.replace(/[^\d.,]/g, '');
+
+  // Se vier 47360 do XML, transforma para 47.360
+  if(/^\d{5,6}$/.test(p)){
+    p = p.slice(0, -3) + '.' + p.slice(-3);
+  }
+
+  return p;
+},
 
     async esperar(fn, tempo=10000){
       const inicio = Date.now();
