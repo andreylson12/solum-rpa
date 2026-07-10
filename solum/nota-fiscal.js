@@ -1,44 +1,67 @@
-(function(){
+(function () {
   window.SOLUM = window.SOLUM || {};
-  delete SOLUM.notaFiscal;
+
+  delete window.SOLUM.notaFiscal;
 
   const NotaFiscal = {
 
-    rodando:false,
-    pesoConfirmacao:'',
-    valorConfirmacao:'',
+    rodando: false,
 
-    async executar(){
-      if(this.rodando){
-        SOLUM.engine.log('Nota Fiscal já está em execução.', 'info');
+    async executar() {
+      if (this.rodando) {
+        SOLUM.engine.log(
+          'Nota Fiscal já está em execução.',
+          'info'
+        );
         return false;
       }
 
       this.rodando = true;
 
-      try{
-        const xml = SOLUM.context?.dados?.xml || SOLUM.engine.estado.dados.xml || {};
-        const planilha = SOLUM.context?.dados?.planilha || SOLUM.engine.estado.dados.planilha || {};
+      try {
+        const xml =
+          SOLUM.context?.dados?.xml ||
+          SOLUM.engine?.estado?.dados?.xml ||
+          {};
 
-        if(!xml.chave){
-          alert('XML da nota fiscal não foi lido.');
-          return false;
+        const planilha =
+          SOLUM.context?.dados?.planilha ||
+          SOLUM.engine?.estado?.dados?.planilha ||
+          {};
+
+        if (!xml.chave) {
+          throw new Error(
+            'XML da nota fiscal não foi lido.'
+          );
         }
 
         const bpProdutor = this.obterBPProdutor(planilha);
-        if(!bpProdutor) throw new Error('BP do produtor não encontrado na planilha.');
 
-        SOLUM.engine.log('Iniciando NF ' + (xml.numero || xml.nf || ''), 'info');
+        if (!bpProdutor) {
+          throw new Error(
+            'BP do produtor não encontrado na planilha.'
+          );
+        }
+
+        SOLUM.engine.log(
+          'Iniciando NF ' +
+          (xml.numero || xml.nNF || ''),
+          'info'
+        );
 
         await this.abrirNovaNotaFiscal();
-        await SOLUM.select.selecionarProdutor(bpProdutor);
-        SOLUM.engine.log('Produtor selecionado.', 'ok');
 
-        await SOLUM.select.selecionarFazendaPorIE(xml.inscricaoEstadual);
-        SOLUM.engine.log('Fazenda selecionada.', 'ok');
+        await SOLUM.select.selecionarProdutor(
+          bpProdutor
+        );
+
+        await SOLUM.select.selecionarFazendaPorIE(
+          xml.inscricaoEstadual ||
+          xml.ie ||
+          ''
+        );
 
         await SOLUM.select.selecionarModelo55();
-        SOLUM.engine.log('Modelo 55 selecionado.', 'ok');
 
         await this.preencherChave(xml.chave);
         await this.clicarLupaChave();
@@ -46,333 +69,984 @@
         await this.esperarNotaCarregada();
         await this.esperarSalvarHabilitado();
 
-        this.guardarPesoValor();
+        /*
+         * Antes de abrir o modal, guardamos os valores
+         * que estiverem disponíveis na tela ou no XML.
+         */
+        const valores = this.obterValoresConfirmacao(xml);
+
+        SOLUM.engine.log(
+          'Peso interno preparado: ' + valores.peso,
+          'info'
+        );
+
+        SOLUM.engine.log(
+          'Valor interno preparado: ' + valores.valor,
+          'info'
+        );
 
         await this.clicarSalvar();
-        await this.preencherConfirmacaoValores(xml);
+
+        await this.preencherConfirmacaoAngular(
+          valores.peso,
+          valores.valor
+        );
+
         await this.clicarConfirmarValores();
         await this.clicarSimFinal();
 
-        SOLUM.engine.log('Nota Fiscal salva com sucesso.', 'ok');
+        await this.esperarNotaNaTabela(
+          xml.numero || xml.nNF || ''
+        );
+
+        SOLUM.engine.log(
+          'Nota Fiscal salva com sucesso.',
+          'ok'
+        );
+
         return true;
 
-      }finally{
+      } catch (erro) {
+        console.error(
+          'Erro no módulo Nota Fiscal:',
+          erro
+        );
+
+        SOLUM.engine.log(
+          'Erro na Nota Fiscal: ' +
+          (erro?.message || erro),
+          'erro'
+        );
+
+        throw erro;
+
+      } finally {
         this.rodando = false;
       }
     },
 
-    obterBPProdutor(planilha){
+    obterBPProdutor(planilha) {
       return String(
-        planilha.bp ||
-        planilha.primeiro?.bp ||
-        planilha.resultados?.[0]?.bp ||
+        planilha?.bp ||
+        planilha?.primeiro?.bp ||
+        planilha?.resultados?.[0]?.bp ||
         ''
       ).replace(/\D/g, '');
     },
 
-    async abrirNovaNotaFiscal(){
-      if(this.telaNFAberta()){
-        SOLUM.engine.log('Tela NF já está aberta.', 'ok');
+    async abrirNovaNotaFiscal() {
+      if (this.telaNFAberta()) {
+        SOLUM.engine.log(
+          'Tela NF já está aberta.',
+          'ok'
+        );
         return true;
       }
 
-      const btn = this.botaoPorTextoClasse('Nova Nota Fiscal', 'btn-novo-sesar');
-      if(!btn) throw new Error('Botão Nova Nota Fiscal não encontrado.');
+      const botao = this.botaoPorTextoClasse(
+        'Nova Nota Fiscal',
+        'btn-novo-sesar'
+      );
 
-      btn.click();
-      SOLUM.engine.log('Nova Nota Fiscal clicado.', 'ok');
+      if (!botao) {
+        throw new Error(
+          'Botão Nova Nota Fiscal não encontrado.'
+        );
+      }
 
-      const abriu = await this.esperar(() => this.telaNFAberta(), 15000);
-      if(!abriu) throw new Error('Tela Nova Nota Fiscal não abriu.');
+      botao.click();
 
-      return true;
+      SOLUM.engine.log(
+        'Nova Nota Fiscal clicado.',
+        'ok'
+      );
+
+      const abriu = await this.esperar(
+        () => this.telaNFAberta(),
+        15000
+      );
+
+      if (!abriu) {
+        throw new Error(
+          'Tela Nova Nota Fiscal não abriu.'
+        );
+      }
     },
 
-    telaNFAberta(){
-      return !!(
+    telaNFAberta() {
+      return Boolean(
         document.querySelector('#fazenda') &&
         document.querySelector('#modeloNFId') &&
         document.querySelector('#chave')
       );
     },
 
-    async preencherChave(chave){
-      const campo = document.querySelector('#chave');
-      if(!campo) throw new Error('Campo chave não encontrado.');
+    async preencherChave(chave) {
+      const campo =
+        document.querySelector('#chave');
+
+      if (!campo) {
+        throw new Error(
+          'Campo chave não encontrado.'
+        );
+      }
 
       await this.setValor(campo, chave);
-      SOLUM.engine.log('Chave preenchida.', 'ok');
+
+      SOLUM.engine.log(
+        'Chave preenchida.',
+        'ok'
+      );
     },
 
-    async clicarLupaChave(){
-      const campo = document.querySelector('#chave');
-      if(!campo) throw new Error('Campo chave não encontrado.');
+    async clicarLupaChave() {
+      const campo =
+        document.querySelector('#chave');
 
-      const grupo = campo.parentElement;
+      if (!campo) {
+        throw new Error(
+          'Campo chave não encontrado.'
+        );
+      }
+
+      const grupo =
+        campo.parentElement;
 
       const lupa =
-        grupo.querySelector('button') ||
-        grupo.querySelector('i')?.closest('button') ||
-        grupo.querySelector('i, span');
+        grupo?.querySelector('button') ||
+        grupo?.querySelector('i')?.closest('button') ||
+        grupo?.querySelector('i, span');
 
-      if(!lupa) throw new Error('Lupa da chave não encontrada.');
+      if (!lupa) {
+        throw new Error(
+          'Lupa da chave não encontrada.'
+        );
+      }
 
       lupa.click();
-      SOLUM.engine.log('Lupa da chave clicada.', 'ok');
+
+      SOLUM.engine.log(
+        'Lupa da chave clicada.',
+        'ok'
+      );
     },
 
-    async esperarNotaCarregada(){
-      const ok = await this.esperar(() => {
-        const serie = document.querySelector('#serie')?.value;
-        const numero = document.querySelector('#numeroNF')?.value;
-        const protocolo = document.querySelector('#numeroProtocolo')?.value;
-        const emissao = document.querySelector('#emissao')?.value;
-        const cfop = document.querySelector('#cfopId')?.value;
-        const peso = document.querySelector('#pesoNF')?.value;
-        const valor = document.querySelector('#valorTotal')?.value;
-        const autenticacao = document.querySelector('#dataAutenticacao')?.value;
+    async esperarNotaCarregada() {
+      const carregou = await this.esperar(() => {
+        const serie =
+          document.querySelector('#serie')?.value;
 
-        return !!(
+        const numero =
+          document.querySelector('#numeroNF')?.value;
+
+        const protocolo =
+          document.querySelector('#numeroProtocolo')?.value;
+
+        const emissao =
+          document.querySelector('#emissao')?.value;
+
+        const cfop =
+          document.querySelector('#cfopId')?.value;
+
+        const autenticacao =
+          document.querySelector('#dataAutenticacao')?.value;
+
+        const valorUnitario =
+          document.querySelector('#valorUnitario')?.value;
+
+        return Boolean(
           serie &&
           numero &&
           protocolo &&
           emissao &&
           cfop &&
-          peso &&
-          valor &&
-          valor !== 'R$ 0,00' &&
-          autenticacao
+          autenticacao &&
+          valorUnitario
         );
       }, 30000);
 
-      if(!ok) throw new Error('NF não carregou todos os dados.');
-
-      SOLUM.engine.log('Dados da NF carregados.', 'ok');
-      await SOLUM.actions.esperar(800);
-    },
-
-    async esperarSalvarHabilitado(){
-      const ok = await this.esperar(() => {
-        const btn = this.botaoSalvarNF();
-
-        return !!(
-          btn &&
-          !btn.disabled &&
-          !String(btn.className || '').includes('disabled')
+      if (!carregou) {
+        throw new Error(
+          'NF não carregou todos os dados.'
         );
-      }, 15000);
-
-      if(!ok) throw new Error('Botão Salvar não habilitou.');
-
-      SOLUM.engine.log('Salvar habilitado.', 'ok');
-    },
-
-    guardarPesoValor(){
-      const pesoTela = document.querySelector('#pesoNF')?.value;
-      const valorTela = document.querySelector('#valorTotal')?.value;
-
-      this.pesoConfirmacao = this.limparPeso(pesoTela);
-      this.valorConfirmacao = this.limparValor(valorTela);
-
-      SOLUM.engine.log('Peso guardado para confirmação: ' + this.pesoConfirmacao, 'info');
-      SOLUM.engine.log('Valor guardado para confirmação: ' + this.valorConfirmacao, 'info');
-
-      if(!this.pesoConfirmacao){
-        throw new Error('Peso da tela não encontrado antes de salvar.');
       }
 
-      if(!this.valorConfirmacao){
-        throw new Error('Valor da tela não encontrado antes de salvar.');
-      }
+      SOLUM.engine.log(
+        'Dados da NF carregados.',
+        'ok'
+      );
+
+      await SOLUM.actions.esperar(1000);
     },
 
-    botaoSalvarNF(){
-      return [...document.querySelectorAll('button')]
-        .filter(b => b.offsetParent !== null)
-        .filter(b => !b.closest('#solum-rpa'))
-        .find(b =>
-          this.normalizar(b.innerText || b.textContent) === 'SALVAR' &&
-          String(b.className || '').includes('button-sesar-verde-escuro')
+    async esperarSalvarHabilitado() {
+      const habilitou = await this.esperar(() => {
+        const botao = this.botaoSalvarNF();
+
+        if (!botao) return false;
+
+        return (
+          !botao.disabled &&
+          !String(botao.className)
+            .includes('disabled')
         );
-    },
+      }, 20000);
 
-    async clicarSalvar(){
-      const btn = this.botaoSalvarNF();
-      if(!btn) throw new Error('Botão Salvar da NF não encontrado.');
-
-      btn.click();
-      SOLUM.engine.log('Salvar clicado.', 'ok');
-
-      const abriu = await this.esperar(() => {
-        const peso = document.querySelector('#confirmacaoPeso');
-        const valor = document.querySelector('#confirmacaoValor');
-        const confirmar = document.querySelector('button.botaoConfirmacao');
-
-        return !!(
-          peso &&
-          valor &&
-          peso.offsetParent !== null &&
-          valor.offsetParent !== null &&
-          confirmar &&
-          confirmar.offsetParent !== null
+      if (!habilitou) {
+        throw new Error(
+          'Botão Salvar não habilitou.'
         );
-      }, 15000);
+      }
 
-      if(!abriu) throw new Error('Confirmação de valores não abriu.');
-
-      SOLUM.engine.log('Modal de confirmação de valores aberto.', 'ok');
+      SOLUM.engine.log(
+        'Salvar habilitado.',
+        'ok'
+      );
     },
 
-    async preencherConfirmacaoValores(xml){
-      const campoPeso = document.querySelector('#confirmacaoPeso');
-      const campoValor = document.querySelector('#confirmacaoValor');
+    botaoSalvarNF() {
+      return [
+        ...document.querySelectorAll('button')
+      ]
+        .filter(botao =>
+          botao.offsetParent !== null
+        )
+        .filter(botao =>
+          !botao.closest('#solum-rpa')
+        )
+        .find(botao => {
+          const texto = this.normalizar(
+            botao.innerText ||
+            botao.textContent
+          );
 
-      if(!campoPeso || campoPeso.offsetParent === null){
-        throw new Error('Campo confirmacaoPeso não encontrado.');
+          const classe =
+            String(botao.className || '');
+
+          return (
+            texto === 'SALVAR' &&
+            classe.includes(
+              'button-sesar-verde-escuro'
+            )
+          );
+        }) || null;
+    },
+
+    async clicarSalvar() {
+      const botao =
+        this.botaoSalvarNF();
+
+      if (!botao) {
+        throw new Error(
+          'Botão Salvar da NF não encontrado.'
+        );
       }
 
-      if(!campoValor || campoValor.offsetParent === null){
-        throw new Error('Campo confirmacaoValor não encontrado.');
+      botao.click();
+
+      SOLUM.engine.log(
+        'Salvar clicado.',
+        'ok'
+      );
+
+      const abriu = await this.esperar(
+        () => Boolean(
+          document.querySelector(
+            '#confirmacaoPeso'
+          ) &&
+          document.querySelector(
+            '#confirmacaoValor'
+          ) &&
+          document.querySelector(
+            'button.botaoConfirmacao'
+          )
+        ),
+        15000
+      );
+
+      if (!abriu) {
+        throw new Error(
+          'Modal de confirmação de valores não abriu.'
+        );
       }
+
+      SOLUM.engine.log(
+        'Modal de confirmação aberto.',
+        'ok'
+      );
+
+      await SOLUM.actions.esperar(500);
+    },
+
+    obterValoresConfirmacao(xml) {
+      const pesoTela =
+        this.buscarValorCampoOuLabel(
+          'pesoNF',
+          'PESO'
+        );
+
+      const valorTela =
+        this.buscarValorCampoOuLabel(
+          'valorTotal',
+          'VALOR TOTAL'
+        );
+
+      /*
+       * Não usar qVol como peso.
+       * qVol geralmente é quantidade de volumes,
+       * por exemplo 47, e não o peso da carga.
+       */
+      const pesoBruto =
+        pesoTela ||
+        xml?.pesoNF ||
+        xml?.pesoLiquido ||
+        xml?.pesoL ||
+        xml?.qTrib ||
+        xml?.qCom ||
+        xml?.peso ||
+        '';
+
+      const valorBruto =
+        valorTela ||
+        xml?.valorTotal ||
+        xml?.vNF ||
+        xml?.valorNota ||
+        xml?.totalNota ||
+        '';
 
       const peso =
-        this.pesoConfirmacao ||
-        this.limparPeso(xml.qCom || xml.qTrib || xml.pesoL || xml.peso);
+        this.converterPesoInterno(pesoBruto);
 
       const valor =
-        this.valorConfirmacao ||
-        this.limparValor(xml.valorTotal);
+        this.converterValorInterno(valorBruto);
 
-      if(!peso) throw new Error('Peso para confirmação não encontrado.');
-      if(!valor) throw new Error('Valor para confirmação não encontrado.');
+      if (
+        !Number.isFinite(peso) ||
+        peso <= 0
+      ) {
+        console.log(
+          'XML recebido:',
+          xml
+        );
 
-      await this.setValor(campoPeso, peso);
-      await this.setValor(campoValor, valor);
-
-      SOLUM.engine.log('Peso confirmado: ' + campoPeso.value, 'ok');
-      SOLUM.engine.log('Valor confirmado: ' + campoValor.value, 'ok');
-    },
-
-    async clicarConfirmarValores(){
-      const btn = document.querySelector('button.botaoConfirmacao');
-
-      if(!btn || btn.offsetParent === null){
-        throw new Error('Botão Confirmar valores não encontrado.');
+        throw new Error(
+          'Peso válido da NF não encontrado. ' +
+          'O robô não utiliza qVol como peso.'
+        );
       }
 
-      btn.click();
-      SOLUM.engine.log('Confirmar valores clicado.', 'ok');
+      if (
+        !Number.isFinite(valor) ||
+        valor <= 0
+      ) {
+        console.log(
+          'XML recebido:',
+          xml
+        );
 
-      const apareceuSim = await this.esperar(() => {
-        const sim = document.querySelector('button.swal2-confirm');
-        return sim && sim.offsetParent !== null;
-      }, 15000);
+        throw new Error(
+          'Valor total válido da NF não encontrado.'
+        );
+      }
 
-      if(!apareceuSim) throw new Error('Confirmação final SIM não apareceu.');
+      return {
+        peso,
+        valor
+      };
     },
 
-    async clicarSimFinal(){
-      const sim = document.querySelector('button.swal2-confirm');
+    buscarValorCampoOuLabel(id, textoLabel) {
+      const direto =
+        document.querySelector('#' + id);
 
-      if(!sim || sim.offsetParent === null){
-        throw new Error('Botão SIM final não encontrado.');
+      if (
+        direto &&
+        String(direto.value || '').trim()
+      ) {
+        return direto.value;
+      }
+
+      const alvo =
+        this.normalizar(textoLabel);
+
+      const elementos = [
+        ...document.querySelectorAll(
+          'label, div, span'
+        )
+      ];
+
+      for (const elemento of elementos) {
+        const texto = this.normalizar(
+          elemento.innerText ||
+          elemento.textContent
+        );
+
+        if (texto !== alvo) continue;
+
+        const grupo =
+          elemento.closest(
+            '.form-group, .col-md-3, .col-md-4, .col-md-6'
+          ) ||
+          elemento.parentElement;
+
+        const campo =
+          grupo?.querySelector(
+            'input, select, textarea'
+          );
+
+        if (
+          campo &&
+          String(campo.value || '').trim()
+        ) {
+          return campo.value;
+        }
+
+        const textoGrupo =
+          String(
+            grupo?.innerText ||
+            grupo?.textContent ||
+            ''
+          ).trim();
+
+        const linhas =
+          textoGrupo
+            .split(/\n+/)
+            .map(linha => linha.trim())
+            .filter(Boolean);
+
+        if (linhas.length >= 2) {
+          return linhas[linhas.length - 1];
+        }
+      }
+
+      return '';
+    },
+
+    converterPesoInterno(valor) {
+      if (
+        typeof valor === 'number' &&
+        Number.isFinite(valor)
+      ) {
+        return Math.round(valor);
+      }
+
+      let texto =
+        String(valor || '').trim();
+
+      if (!texto) return NaN;
+
+      texto = texto.replace(/[^\d,.-]/g, '');
+
+      /*
+       * 47.880 ou 47,880 devem virar 47880.
+       * Peso é comparado pelo SOLUM como número inteiro.
+       */
+      const somenteDigitos =
+        texto.replace(/\D/g, '');
+
+      if (!somenteDigitos) return NaN;
+
+      return Number(somenteDigitos);
+    },
+
+    converterValorInterno(valor) {
+      if (
+        typeof valor === 'number' &&
+        Number.isFinite(valor)
+      ) {
+        return valor;
+      }
+
+      let texto =
+        String(valor || '').trim();
+
+      if (!texto) return NaN;
+
+      texto = texto
+        .replace(/R\$/gi, '')
+        .replace(/\s+/g, '');
+
+      /*
+       * Formato brasileiro:
+       * 96.957,00 -> 96957
+       */
+      if (
+        texto.includes(',') &&
+        texto.includes('.')
+      ) {
+        texto = texto
+          .replace(/\./g, '')
+          .replace(',', '.');
+
+        return Number(texto);
+      }
+
+      /*
+       * Apenas vírgula:
+       * 96957,00 -> 96957
+       */
+      if (texto.includes(',')) {
+        texto = texto.replace(',', '.');
+        return Number(texto);
+      }
+
+      /*
+       * Formato vindo da API/XML:
+       * 96957.00 -> 96957
+       */
+      return Number(
+        texto.replace(/[^\d.-]/g, '')
+      );
+    },
+
+    async preencherConfirmacaoAngular(
+      pesoInterno,
+      valorInterno
+    ) {
+      const campoPeso =
+        document.querySelector(
+          '#confirmacaoPeso'
+        );
+
+      const campoValor =
+        document.querySelector(
+          '#confirmacaoValor'
+        );
+
+      if (!campoPeso || !campoValor) {
+        throw new Error(
+          'Campos de confirmação não encontrados.'
+        );
+      }
+
+      const setterPeso =
+        this.obterSetterAngular(
+          campoPeso,
+          true
+        );
+
+      const setterValor =
+        this.obterSetterAngular(
+          campoValor,
+          false
+        );
+
+      if (
+        typeof setterPeso !== 'function'
+      ) {
+        throw new Error(
+          'Setter Angular de peso não encontrado.'
+        );
+      }
+
+      if (
+        typeof setterValor !== 'function'
+      ) {
+        throw new Error(
+          'Setter Angular de valor não encontrado.'
+        );
+      }
+
+      /*
+       * Atualiza exatamente as propriedades:
+       *
+       * componente.pesoConfirmacao
+       * componente.valorTotalConfirmacao
+       */
+      setterPeso(pesoInterno);
+      setterValor(valorInterno);
+
+      /*
+       * Atualização visual.
+       * A validação verdadeira já foi atualizada
+       * pelos setters acima.
+       */
+      this.setValorVisual(
+        campoPeso,
+        Number(pesoInterno)
+          .toLocaleString('pt-BR')
+      );
+
+      this.setValorVisual(
+        campoValor,
+        Number(valorInterno)
+          .toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          })
+      );
+
+      campoPeso.classList.remove(
+        'ng-pristine',
+        'ng-untouched'
+      );
+
+      campoPeso.classList.add(
+        'ng-dirty',
+        'ng-touched',
+        'ng-valid'
+      );
+
+      campoValor.classList.remove(
+        'ng-pristine',
+        'ng-untouched'
+      );
+
+      campoValor.classList.add(
+        'ng-dirty',
+        'ng-touched',
+        'ng-valid'
+      );
+
+      SOLUM.engine.log(
+        'Peso confirmado internamente: ' +
+        pesoInterno,
+        'ok'
+      );
+
+      SOLUM.engine.log(
+        'Valor confirmado internamente: ' +
+        valorInterno,
+        'ok'
+      );
+
+      await SOLUM.actions.esperar(500);
+    },
+
+    obterSetterAngular(campo, campoComMascara) {
+      const tarefa =
+        campo
+          ?.__zone_symbol__ngModelChangefalse
+          ?.[0];
+
+      if (!tarefa) {
+        return null;
+      }
+
+      const wrapper =
+        tarefa.callback?.('__ngUnwrap__');
+
+      if (
+        typeof wrapper !== 'function'
+      ) {
+        return null;
+      }
+
+      /*
+       * Campo peso:
+       * primeiro listener pertence à máscara;
+       * o próximo pertence ao componente.
+       *
+       * Campo valor:
+       * wrapper(Function) retorna diretamente
+       * o setter valorTotalConfirmacao.
+       */
+      if (campoComMascara) {
+        return (
+          wrapper.__ngNextListenerFn__ ||
+          wrapper.__ngLastListenerFn__ ||
+          null
+        );
+      }
+
+      try {
+        const funcaoReal =
+          wrapper(Function);
+
+        if (
+          typeof funcaoReal === 'function'
+        ) {
+          return funcaoReal;
+        }
+      } catch (erro) {
+        console.warn(
+          'Não foi possível extrair setter direto:',
+          erro
+        );
+      }
+
+      return (
+        wrapper.__ngNextListenerFn__ ||
+        wrapper.__ngLastListenerFn__ ||
+        null
+      );
+    },
+
+    setValorVisual(campo, valor) {
+      const setter =
+        Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          'value'
+        )?.set;
+
+      if (setter) {
+        setter.call(campo, String(valor));
+      } else {
+        campo.value = String(valor);
+      }
+    },
+
+    async clicarConfirmarValores() {
+      const botao =
+        document.querySelector(
+          'button.botaoConfirmacao'
+        );
+
+      if (
+        !botao ||
+        botao.offsetParent === null
+      ) {
+        throw new Error(
+          'Botão Confirmar valores não encontrado.'
+        );
+      }
+
+      botao.click();
+
+      SOLUM.engine.log(
+        'Confirmar valores clicado.',
+        'ok'
+      );
+
+      const apareceu = await this.esperar(
+        () => {
+          const sim =
+            document.querySelector(
+              'button.swal2-confirm'
+            );
+
+          return Boolean(
+            sim &&
+            sim.offsetParent !== null
+          );
+        },
+        15000
+      );
+
+      if (!apareceu) {
+        const mensagemErro = [
+          ...document.querySelectorAll(
+            '.toast-message, .toast-error, .swal2-html-container'
+          )
+        ]
+          .filter(elemento =>
+            elemento.offsetParent !== null
+          )
+          .map(elemento =>
+            String(
+              elemento.innerText ||
+              elemento.textContent ||
+              ''
+            ).trim()
+          )
+          .filter(Boolean)
+          .join(' | ');
+
+        throw new Error(
+          'Confirmação final SIM não apareceu.' +
+          (
+            mensagemErro
+              ? ' Mensagem do SOLUM: ' +
+                mensagemErro
+              : ''
+          )
+        );
+      }
+
+      SOLUM.engine.log(
+        'Confirmação final aberta.',
+        'ok'
+      );
+    },
+
+    async clicarSimFinal() {
+      const sim =
+        document.querySelector(
+          'button.swal2-confirm'
+        );
+
+      if (
+        !sim ||
+        sim.offsetParent === null
+      ) {
+        throw new Error(
+          'Botão SIM final não encontrado.'
+        );
       }
 
       sim.click();
-      SOLUM.engine.log('SIM final clicado.', 'ok');
+
+      SOLUM.engine.log(
+        'SIM final clicado.',
+        'ok'
+      );
 
       await SOLUM.actions.esperar(1500);
     },
 
-    botaoPorTextoClasse(texto, classe){
-      const alvo = this.normalizar(texto);
+    async esperarNotaNaTabela(numeroNF) {
+      const numero =
+        String(numeroNF || '').trim();
 
-      return [...document.querySelectorAll('button')]
-        .filter(b => b.offsetParent !== null)
-        .filter(b => !b.closest('#solum-rpa'))
-        .find(b => {
-          const t = this.normalizar(b.innerText || b.textContent);
-          const c = String(b.className || '');
-          return t === alvo && (!classe || c.includes(classe));
-        });
+      const apareceu = await this.esperar(
+        () => {
+          const linhas = [
+            ...document.querySelectorAll(
+              'table tbody tr'
+            )
+          ];
+
+          return linhas.some(linha => {
+            const texto =
+              String(
+                linha.innerText ||
+                linha.textContent ||
+                ''
+              );
+
+            if (!numero) {
+              return texto.trim().length > 0;
+            }
+
+            return texto.includes(numero);
+          });
+        },
+        20000
+      );
+
+      if (!apareceu) {
+        SOLUM.engine.log(
+          'A NF foi confirmada, mas ainda não apareceu na tabela.',
+          'info'
+        );
+
+        return false;
+      }
+
+      SOLUM.engine.log(
+        'NF encontrada na tabela.',
+        'ok'
+      );
+
+      return true;
     },
 
-   async setValor(campo, valor){
-  campo.scrollIntoView({block:'center'});
-  campo.focus();
-  campo.click();
+    botaoPorTextoClasse(texto, classe) {
+      const alvo =
+        this.normalizar(texto);
 
-  const texto = String(valor || '');
+      return [
+        ...document.querySelectorAll(
+          'button'
+        )
+      ]
+        .filter(botao =>
+          botao.offsetParent !== null
+        )
+        .filter(botao =>
+          !botao.closest('#solum-rpa')
+        )
+        .find(botao => {
+          const textoBotao =
+            this.normalizar(
+              botao.innerText ||
+              botao.textContent
+            );
 
-  const setter = Object.getOwnPropertyDescriptor(
-    window.HTMLInputElement.prototype,
-    'value'
-  )?.set;
+          const classes =
+            String(
+              botao.className ||
+              ''
+            );
 
-  if(setter) setter.call(campo, '');
-  else campo.value = '';
-
-  campo.dispatchEvent(new Event('input', {bubbles:true}));
-  campo.dispatchEvent(new Event('change', {bubbles:true}));
-
-  await SOLUM.actions.esperar(150);
-
-  if(setter) setter.call(campo, texto);
-  else campo.value = texto;
-
-  campo.dispatchEvent(new InputEvent('input', {
-    bubbles:true,
-    cancelable:true,
-    inputType:'insertText',
-    data:texto
-  }));
-
-  campo.dispatchEvent(new KeyboardEvent('keydown', {bubbles:true, key:'Tab'}));
-  campo.dispatchEvent(new KeyboardEvent('keyup', {bubbles:true, key:'Tab'}));
-
-  campo.classList.remove('ng-pristine','ng-untouched');
-  campo.classList.add('ng-dirty','ng-touched','ng-valid');
-
-  campo.dispatchEvent(new Event('change', {bubbles:true}));
-  campo.dispatchEvent(new Event('blur', {bubbles:true}));
-  campo.dispatchEvent(new FocusEvent('focusout', {bubbles:true}));
-
-  await SOLUM.actions.esperar(600);
-
+          return (
+            textoBotao === alvo &&
+            (
+              !classe ||
+              classes.includes(classe)
+            )
+          );
+        }) || null;
     },
-  
-   limparPeso(v){
-  let p = String(v || '').trim();
-  p = p.replace(/[^\d.,]/g, '');
 
-  if(/^\d{5,6}$/.test(p)){
-    p = p.slice(0, -3) + '.' + p.slice(-3);
-  }
+    async setValor(campo, valor) {
+      campo.scrollIntoView({
+        block: 'center'
+      });
 
-  p = p.replace(/,0+$/, '');
+      campo.focus();
+      campo.click();
 
-  return p;
-},
+      const texto =
+        String(valor ?? '');
 
-   limparValor(v){
-  let valor = String(v || '').trim();
+      const setter =
+        Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          'value'
+        )?.set;
 
-  valor = valor.replace(/\s+/g, ' ').trim();
+      if (setter) {
+        setter.call(campo, '');
+      } else {
+        campo.value = '';
+      }
 
-  if(valor && !valor.startsWith('R$')){
-    valor = 'R$ ' + valor.replace('R$', '').trim();
-  }
+      campo.dispatchEvent(
+        new Event('input', {
+          bubbles: true
+        })
+      );
 
-  return valor;
-   },
+      campo.dispatchEvent(
+        new Event('change', {
+          bubbles: true
+        })
+      );
 
-    async esperar(fn, tempo=10000){
-      const inicio = Date.now();
+      await SOLUM.actions.esperar(100);
 
-      while(Date.now() - inicio < tempo){
-        try{
-          if(fn()) return true;
-        }catch(e){}
+      if (setter) {
+        setter.call(campo, texto);
+      } else {
+        campo.value = texto;
+      }
+
+      campo.dispatchEvent(
+        new InputEvent('input', {
+          bubbles: true,
+          inputType: 'insertText',
+          data: texto
+        })
+      );
+
+      campo.dispatchEvent(
+        new Event('change', {
+          bubbles: true
+        })
+      );
+
+      campo.dispatchEvent(
+        new Event('blur', {
+          bubbles: true
+        })
+      );
+
+      await SOLUM.actions.esperar(300);
+    },
+
+    async esperar(funcao, tempo = 10000) {
+      const inicio =
+        Date.now();
+
+      while (
+        Date.now() - inicio < tempo
+      ) {
+        try {
+          if (funcao()) {
+            return true;
+          }
+        } catch (erro) {}
 
         await SOLUM.actions.esperar(300);
       }
@@ -380,16 +1054,23 @@
       return false;
     },
 
-    normalizar(t){
-      return String(t || '')
+    normalizar(texto) {
+      return String(texto || '')
         .toUpperCase()
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
+        .replace(
+          /[\u0300-\u036f]/g,
+          ''
+        )
         .replace(/\s+/g, ' ')
         .trim();
     }
 
   };
 
-  SOLUM.notaFiscal = NotaFiscal;
+  window.SOLUM.notaFiscal = NotaFiscal;
+
+  console.log(
+    '✅ Módulo Nota Fiscal atualizado com confirmação Angular.'
+  );
 })();
