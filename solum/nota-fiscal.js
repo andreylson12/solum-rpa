@@ -35,12 +35,40 @@
           );
         }
 
-        const bpProdutor = this.obterBPProdutor(planilha);
+ 
 
-        if (!bpProdutor) {
-          throw new Error(
-            'BP do produtor não encontrado na planilha.'
-          );
+  }
+
+  console.table(linha);
+
+  const bp = String(
+
+      linha.bp ||
+      linha.codigoBP ||
+      linha.bpProdutor ||
+
+      ''
+
+  ).replace(/\D/g,'');
+
+  if(!bp){
+
+      console.groupEnd();
+
+      throw new Error(
+          'Linha localizada mas sem BP.'
+      );
+
+  }
+
+  console.log('BP escolhido:',bp);
+
+  console.groupEnd();
+
+  return bp;
+
+},
+ 
         }
 
         SOLUM.engine.log(
@@ -1072,5 +1100,214 @@
 
   console.log(
     '✅ Módulo Nota Fiscal atualizado com confirmação Angular.'
+  );
+})();,
+/* =========================================================
+   CORREÇÃO: LOCALIZAR O BP PELO EMITENTE DO XML
+   Aceita CPF ou CNPJ e usa o nome como segunda opção.
+   Não pega mais automaticamente o primeiro BP da planilha.
+========================================================= */
+
+(function () {
+  if (!window.SOLUM?.notaFiscal) {
+    throw new Error(
+      'Módulo SOLUM.notaFiscal não foi carregado.'
+    );
+  }
+
+  window.SOLUM.notaFiscal.obterBPProdutor = function (planilha) {
+    const xml =
+      SOLUM.context?.dados?.xml ||
+      SOLUM.engine?.estado?.dados?.xml ||
+      {};
+
+    const linhas =
+      planilha?.resultados ||
+      planilha?.linhas ||
+      planilha?.dados ||
+      [];
+
+    const documentoXML = String(
+      xml?.cnpj ||
+      xml?.cpf ||
+      xml?.cnpjEmitente ||
+      xml?.cpfEmitente ||
+      xml?.emitente?.cnpj ||
+      xml?.emitente?.cpf ||
+      xml?.emitente?.documento ||
+      ''
+    ).replace(/\D/g, '');
+
+    const nomeXML = this.normalizar(
+      xml?.nome ||
+      xml?.xNome ||
+      xml?.nomeEmitente ||
+      xml?.razaoSocial ||
+      xml?.emitente?.nome ||
+      xml?.emitente?.xNome ||
+      xml?.produtor ||
+      ''
+    );
+
+    console.group('🔎 Conferência do produtor XML x planilha');
+    console.log('Documento do XML:', documentoXML);
+    console.log('Nome do XML:', nomeXML);
+    console.log('Planilha recebida:', planilha);
+    console.log('Linhas encontradas:', linhas);
+
+    if (
+      documentoXML &&
+      documentoXML.length !== 11 &&
+      documentoXML.length !== 14
+    ) {
+      console.groupEnd();
+
+      throw new Error(
+        'CPF/CNPJ inválido no XML: ' +
+        documentoXML
+      );
+    }
+
+    if (
+      !documentoXML &&
+      !nomeXML
+    ) {
+      console.groupEnd();
+
+      throw new Error(
+        'Não foi possível identificar o emitente no XML.'
+      );
+    }
+
+    if (
+      !Array.isArray(linhas) ||
+      linhas.length === 0
+    ) {
+      console.groupEnd();
+
+      throw new Error(
+        'A planilha não possui linhas para localizar o produtor do XML.'
+      );
+    }
+
+    let linhaEncontrada = null;
+    let encontradoPor = '';
+
+    /*
+     * 1ª tentativa:
+     * CPF ou CNPJ exatamente igual.
+     */
+    if (documentoXML) {
+      linhaEncontrada = linhas.find(linha => {
+        const documentoLinha = String(
+          linha?.cnpj ||
+          linha?.cpf ||
+          linha?.documento ||
+          linha?.cpfCnpj ||
+          linha?.cnpjProdutor ||
+          linha?.cpfProdutor ||
+          linha?.documentoProdutor ||
+          ''
+        ).replace(/\D/g, '');
+
+        return Boolean(
+          documentoLinha &&
+          documentoLinha === documentoXML
+        );
+      });
+
+      if (linhaEncontrada) {
+        encontradoPor = 'CPF/CNPJ';
+      }
+    }
+
+    /*
+     * 2ª tentativa:
+     * Nome do emitente.
+     */
+    if (!linhaEncontrada && nomeXML) {
+      linhaEncontrada = linhas.find(linha => {
+        const nomeLinha = this.normalizar(
+          linha?.produtor ||
+          linha?.nome ||
+          linha?.nomeProdutor ||
+          linha?.razaoSocial ||
+          linha?.emitente ||
+          linha?.produtorSaida ||
+          ''
+        );
+
+        if (!nomeLinha) {
+          return false;
+        }
+
+        return (
+          nomeLinha === nomeXML ||
+          nomeLinha.includes(nomeXML) ||
+          nomeXML.includes(nomeLinha)
+        );
+      });
+
+      if (linhaEncontrada) {
+        encontradoPor = 'nome';
+      }
+    }
+
+    if (!linhaEncontrada) {
+      console.error(
+        '❌ O emitente do XML não foi encontrado na planilha.'
+      );
+
+      console.table(linhas);
+      console.groupEnd();
+
+      throw new Error(
+        'Produtor do XML não encontrado na planilha. ' +
+        'O robô foi interrompido para não selecionar um produtor errado.'
+      );
+    }
+
+    console.log(
+      '✅ Produtor encontrado por:',
+      encontradoPor
+    );
+
+    console.log(
+      'Linha correta da planilha:',
+      linhaEncontrada
+    );
+
+    const bp = String(
+      linhaEncontrada?.bp ||
+      linhaEncontrada?.codigoBP ||
+      linhaEncontrada?.bpProdutor ||
+      linhaEncontrada?.bpRemessa ||
+      ''
+    ).replace(/\D/g, '');
+
+    if (!bp) {
+      console.groupEnd();
+
+      throw new Error(
+        'O produtor correto foi encontrado, mas a linha está sem BP.'
+      );
+    }
+
+    console.log('✅ BP escolhido:', bp);
+    console.groupEnd();
+
+    SOLUM.engine.log(
+      'Produtor do XML localizado por ' +
+      encontradoPor +
+      ' | BP ' +
+      bp,
+      'ok'
+    );
+
+    return bp;
+  };
+
+  console.log(
+    '✅ Regra do produtor atualizada: XML x planilha por CPF/CNPJ ou nome.'
   );
 })();
